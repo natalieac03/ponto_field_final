@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+
+# Banco local
+*.db
+*.sqlite3
+
+# Variáveis de ambiente
+.env
+.env.*
+
+# Node / Vite
+node_modules/
+dist/
+build/
+
+# Logs
+*.log
+
+# Sistema / editor
+.DS_Store
+.vscode/
+.idea/
