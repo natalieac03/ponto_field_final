@@ -1,0 +1,42 @@
+# ── Python ──────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+
+# ── Banco e dados persistentes (NUNCA versionar — dados de RH) ──
+*.db
+*.sqlite3
+backend/uploads/
+deploy/data/
+deploy/backups/
+
+# ── Variáveis de ambiente (segredos) ────────────────────
+.env
+.env.*
+# ...mas versiona os TEMPLATES (sem segredos):
+!.env.example
+!**/.env.example
+
+# ── Node / Vite ─────────────────────────────────────────
+node_modules/
+dist/
+build/
+
+# ── Arquivos grandes / locais (não fazem parte do código) ──
+_local/
+
+# ── Artefatos de release (bundle de deploy) ─────────────
+pontofield-deploy.tar.gz
+*.zip
+
+# ── Logs ────────────────────────────────────────────────
+*.log
+
+# ── Sistema / editor ────────────────────────────────────
+.DS_Store
+.vscode/
+.idea/

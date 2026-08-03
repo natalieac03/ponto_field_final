@@ -1,0 +1,18 @@
+# Mantém o contexto de build enxuto (context = raiz do repo).
+**/node_modules
+**/.venv
+**/__pycache__
+**/*.pyc
+**/dist
+**/build
+**/.env
+**/.env.*
+backend/che.db
+backend/uploads
+deploy/data
+deploy/backups
+.git
+.claude
+*.zip
+*.pdf
+*.xlsx

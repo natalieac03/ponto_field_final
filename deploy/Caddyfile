@@ -1,0 +1,28 @@
+# Caddy — reverse proxy + HTTPS automático (Let's Encrypt) + SPA estática.
+#
+# DOMAIN:
+#   - hostname real (ex.: ponto.fieldtechnology.com.br) → HTTPS automático;
+#   - ":80"                                             → só HTTP (teste/rede interna);
+#   - "localhost" (default)                             → HTTPS com cert interno (dev).
+# TLS_EMAIL: e-mail usado no registro do certificado (Let's Encrypt).
+
+{
+	email {$TLS_EMAIL:admin@example.com}
+}
+
+{$DOMAIN:localhost} {
+	encode gzip zstd
+
+	# API → backend. handle_path REMOVE o prefixo /api antes de repassar,
+	# então o backend continua vendo /auth, /employees, /records, etc.
+	handle_path /api/* {
+		reverse_proxy api:8000
+	}
+
+	# SPA: serve os arquivos e cai no index.html (roteamento client-side).
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

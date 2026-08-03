@@ -1,0 +1,23 @@
+# Normaliza tudo para LF no repositório (deploy é Linux — evita CRLF quebrando
+# scripts .sh com "bad interpreter" no servidor).
+* text=auto eol=lf
+
+# Scripts e configs de infra: sempre LF.
+*.sh        text eol=lf
+
+# Scripts do Windows: sempre CRLF (senão o cmd.exe quebra).
+*.bat       text eol=crlf
+*.cmd       text eol=crlf
+Dockerfile  text eol=lf
+*.Dockerfile text eol=lf
+Caddyfile   text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+
+# Binários (não normalizar).
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.pdf binary
+*.xlsx binary

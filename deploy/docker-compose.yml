@@ -1,0 +1,39 @@
+# Ponto_Field — stack de produção (API + Caddy).
+# Uso:  cp .env.example .env  → editar  → docker compose up -d --build
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/backend.Dockerfile
+    image: pontofield-api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Força produção: segredos passam a ser obrigatórios (fail-fast) e HSTS liga.
+      APP_ENV: production
+    volumes:
+      # Banco + uploads persistem no host (facilita backup) — ver backup.sh.
+      - ./data:/data
+    expose:
+      - "8000"
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/web.Dockerfile
+    image: pontofield-web
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Certificados/estado do Caddy (não reemitir cert a cada restart).
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
