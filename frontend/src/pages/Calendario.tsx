@@ -423,74 +423,68 @@ function DayModal({ date, existing, onClose, onSaved }: {
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(11,21,38,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 16 }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "var(--surface)", borderRadius: 16, padding: 26, width: "100%", maxWidth: 420, boxShadow: "var(--shadow-md)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-          <div style={{ fontSize: 14, fontWeight: 700 }}>📅 {d}/{m}/{y}</div>
-          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "var(--muted)" }}>✕</button>
-        </div>
-        <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 16 }}>
-          Dia inteiro = referência 0 (H3). Parcial = abate N minutos da jornada.
-        </div>
+    <Modal title={`📅 ${d}/${m}/${y}`} onClose={onClose} maxWidth={420}>
+      <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 16 }}>
+        Dia inteiro = referência 0 (H3). Parcial = abate N minutos da jornada.
+      </div>
 
-        <div className="form-group" style={{ marginBottom: 12 }}>
-          <label>Tipo</label>
-          <div style={{ display: "flex", gap: 8 }}>
-            {(Object.keys(KIND) as CalendarKind[]).map(k => (
-              <button key={k} onClick={() => setKind(k)}
-                style={{ flex: 1, padding: "9px 8px", borderRadius: 10, cursor: "pointer", fontSize: 12.5, fontWeight: 600, fontFamily: "var(--font)",
-                  background: kind === k ? KIND[k].bg : "var(--surface2)",
-                  color: kind === k ? KIND[k].color : "var(--muted)",
-                  border: `1px solid ${kind === k ? KIND[k].color : "var(--border2)"}` }}>
-                {KIND[k].icon} {KIND[k].label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="form-group" style={{ marginBottom: 12 }}>
-          <label>Descrição</label>
-          <input type="text" value={label} maxLength={80} autoFocus
-            onChange={e => { setLabel(e.target.value); setErr(""); }}
-            onKeyDown={e => e.key === "Enter" && save()}
-            placeholder="Ex.: Independência · Jogo do Brasil · Dedetização" />
-        </div>
-
-        <div className="form-group" style={{ marginBottom: 14 }}>
-          <label>Abatimento</label>
-          <div style={{ display: "flex", gap: 8, marginBottom: partial ? 8 : 0 }}>
-            <button onClick={() => setPartial(false)}
-              style={{ flex: 1, padding: 9, borderRadius: 10, cursor: "pointer", fontSize: 12.5, fontWeight: 600, fontFamily: "var(--font)",
-                background: !partial ? "rgba(37,99,235,0.10)" : "var(--surface2)",
-                color: !partial ? "#2563eb" : "var(--muted)",
-                border: `1px solid ${!partial ? "#2563eb" : "var(--border2)"}` }}>Dia inteiro</button>
-            <button onClick={() => setPartial(true)}
-              style={{ flex: 1, padding: 9, borderRadius: 10, cursor: "pointer", fontSize: 12.5, fontWeight: 600, fontFamily: "var(--font)",
-                background: partial ? "rgba(37,99,235,0.10)" : "var(--surface2)",
-                color: partial ? "#2563eb" : "var(--muted)",
-                border: `1px solid ${partial ? "#2563eb" : "var(--border2)"}` }}>Parcial</button>
-          </div>
-          {partial && (
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <input type="number" min={0} max={12} value={hours} onChange={e => setHours(e.target.value)} style={{ width: 76 }} />
-              <span style={{ fontSize: 13, color: "var(--muted)" }}>h</span>
-              <input type="number" min={0} max={59} value={mins} onChange={e => setMins(e.target.value)} style={{ width: 76 }} />
-              <span style={{ fontSize: 13, color: "var(--muted)" }}>min de dispensa</span>
-            </div>
-          )}
-        </div>
-
-        {err && <div className="alert alert-error" style={{ marginBottom: 10 }}>{err}</div>}
-
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-          <div>{existing && <button className="btn btn-danger" onClick={remove} disabled={saving}>Remover</button>}</div>
-          <div style={{ display: "flex", gap: 10 }}>
-            <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
-            <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? "Salvando…" : "Salvar"}</button>
-          </div>
+      <div className="form-group" style={{ marginBottom: 12 }}>
+        <label>Tipo</label>
+        <div style={{ display: "flex", gap: 8 }}>
+          {(Object.keys(KIND) as CalendarKind[]).map(k => (
+            <button key={k} onClick={() => setKind(k)}
+              style={{ flex: 1, padding: "9px 8px", borderRadius: 10, cursor: "pointer", fontSize: 12.5, fontWeight: 600, fontFamily: "var(--font)",
+                background: kind === k ? KIND[k].bg : "var(--surface2)",
+                color: kind === k ? KIND[k].color : "var(--muted)",
+                border: `1px solid ${kind === k ? KIND[k].color : "var(--border2)"}` }}>
+              {KIND[k].icon} {KIND[k].label}
+            </button>
+          ))}
         </div>
       </div>
-    </div>
+
+      <div className="form-group" style={{ marginBottom: 12 }}>
+        <label>Descrição</label>
+        <input type="text" value={label} maxLength={80} autoFocus
+          onChange={e => { setLabel(e.target.value); setErr(""); }}
+          onKeyDown={e => e.key === "Enter" && save()}
+          placeholder="Ex.: Independência · Jogo do Brasil · Dedetização" />
+      </div>
+
+      <div className="form-group" style={{ marginBottom: 14 }}>
+        <label>Abatimento</label>
+        <div style={{ display: "flex", gap: 8, marginBottom: partial ? 8 : 0 }}>
+          <button onClick={() => setPartial(false)}
+            style={{ flex: 1, padding: 9, borderRadius: 10, cursor: "pointer", fontSize: 12.5, fontWeight: 600, fontFamily: "var(--font)",
+              background: !partial ? "rgba(37,99,235,0.10)" : "var(--surface2)",
+              color: !partial ? "#2563eb" : "var(--muted)",
+              border: `1px solid ${!partial ? "#2563eb" : "var(--border2)"}` }}>Dia inteiro</button>
+          <button onClick={() => setPartial(true)}
+            style={{ flex: 1, padding: 9, borderRadius: 10, cursor: "pointer", fontSize: 12.5, fontWeight: 600, fontFamily: "var(--font)",
+              background: partial ? "rgba(37,99,235,0.10)" : "var(--surface2)",
+              color: partial ? "#2563eb" : "var(--muted)",
+              border: `1px solid ${partial ? "#2563eb" : "var(--border2)"}` }}>Parcial</button>
+        </div>
+        {partial && (
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input type="number" min={0} max={12} value={hours} onChange={e => setHours(e.target.value)} style={{ width: 76 }} />
+            <span style={{ fontSize: 13, color: "var(--muted)" }}>h</span>
+            <input type="number" min={0} max={59} value={mins} onChange={e => setMins(e.target.value)} style={{ width: 76 }} />
+            <span style={{ fontSize: 13, color: "var(--muted)" }}>min de dispensa</span>
+          </div>
+        )}
+      </div>
+
+      {err && <div className="alert alert-error" style={{ marginBottom: 10 }}>{err}</div>}
+
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+        <div>{existing && <button className="btn btn-danger" onClick={remove} disabled={saving}>Remover</button>}</div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
+          <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? "Salvando…" : "Salvar"}</button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -542,87 +536,78 @@ function ShiftModal({ employees, onClose, onSaved }: {
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(11,21,38,0.55)", display: "flex",
-      alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 16 }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "var(--surface)", borderRadius: 16,
-        padding: 26, width: "100%", maxWidth: 440, boxShadow: "var(--shadow-md)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-          <div style={{ fontSize: 14, fontWeight: 700 }}>📋 Marcar escala</div>
-          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18,
-            cursor: "pointer", color: "var(--muted)", fontFamily: "var(--font)" }}>✕</button>
-        </div>
-        <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 16, lineHeight: 1.5 }}>
-          Dia escalado conta como <strong>jornada normal</strong> (sábado = 4h, semana passa a 8h/dia).
-          Sem escala, o sábado é descanso e o trabalho vira <strong>extra 100%</strong>.
-        </div>
-
-        <div className="form-group" style={{ marginBottom: 12 }}>
-          <label>Colaborador *</label>
-          <select value={employeeId} onChange={e => { setEmployeeId(e.target.value === "" ? "" : Number(e.target.value)); setErr(""); }}>
-            <option value="">— selecione —</option>
-            {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-          </select>
-        </div>
-
-        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-          {(["dia", "periodo"] as const).map(m => (
-            <button key={m} onClick={() => { setMode(m); setErr(""); }}
-              style={{ flex: 1, padding: "9px 8px", borderRadius: 10, cursor: "pointer", fontSize: 12.5,
-                fontWeight: 600, fontFamily: "var(--font)",
-                background: mode === m ? "rgba(124,58,237,0.10)" : "var(--surface2)",
-                color: mode === m ? "#7c3aed" : "var(--muted)",
-                border: `1px solid ${mode === m ? "#7c3aed" : "var(--border2)"}` }}>
-              {m === "dia" ? "Um dia" : "Período"}
-            </button>
-          ))}
-        </div>
-
-        {mode === "dia" ? (
-          <div className="form-group" style={{ marginBottom: 12 }}>
-            <label>Data da escala</label>
-            <input type="date" value={date} onChange={e => { setDate(e.target.value); setErr(""); }} />
-          </div>
-        ) : (
-          <>
-            <div className="form-grid" style={{ marginBottom: 10 }}>
-              <div className="form-group">
-                <label>De</label>
-                <input type="date" value={start} onChange={e => { setStart(e.target.value); setErr(""); }} />
-              </div>
-              <div className="form-group">
-                <label>Até</label>
-                <input type="date" value={end} min={start} onChange={e => { setEnd(e.target.value); setErr(""); }} />
-              </div>
-            </div>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5,
-              color: "var(--muted)", cursor: "pointer", marginBottom: 12 }}>
-              <input type="checkbox" checked={onlySaturdays} style={{ width: "auto", margin: 0 }}
-                onChange={e => setOnlySaturdays(e.target.checked)} />
-              Somente os sábados do período
-            </label>
-          </>
-        )}
-
-        <div className="form-group" style={{ marginBottom: 14 }}>
-          <label>Observação (opcional)</label>
-          <input type="text" maxLength={120} value={note} onChange={e => setNote(e.target.value)}
-            placeholder="Ex.: Escala de sábado — equipe A" />
-        </div>
-
-        {dates.length > 0 && (
-          <div style={{ fontSize: 12.5, color: "#7c3aed", marginBottom: 12, fontWeight: 600 }}>
-            ✓ {dates.length} dia(s) serão marcados
-          </div>
-        )}
-        {err && <div className="alert alert-error" style={{ marginBottom: 12 }}>{err}</div>}
-
-        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-          <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
-          <button className="btn btn-primary" onClick={save} disabled={saving}>
-            {saving ? "Salvando…" : "Marcar escala"}
-          </button>
-        </div>
+    <Modal title="📋 Marcar escala" onClose={onClose} maxWidth={440}>
+      <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 16, lineHeight: 1.5 }}>
+        Dia escalado conta como <strong>jornada normal</strong> (sábado = 4h, semana passa a 8h/dia).
+        Sem escala, o sábado é descanso e o trabalho vira <strong>extra 100%</strong>.
       </div>
-    </div>
+
+      <div className="form-group" style={{ marginBottom: 12 }}>
+        <label>Colaborador *</label>
+        <select value={employeeId} onChange={e => { setEmployeeId(e.target.value === "" ? "" : Number(e.target.value)); setErr(""); }}>
+          <option value="">— selecione —</option>
+          {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+        </select>
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        {(["dia", "periodo"] as const).map(m => (
+          <button key={m} onClick={() => { setMode(m); setErr(""); }}
+            style={{ flex: 1, padding: "9px 8px", borderRadius: 10, cursor: "pointer", fontSize: 12.5,
+              fontWeight: 600, fontFamily: "var(--font)",
+              background: mode === m ? "rgba(124,58,237,0.10)" : "var(--surface2)",
+              color: mode === m ? "#7c3aed" : "var(--muted)",
+              border: `1px solid ${mode === m ? "#7c3aed" : "var(--border2)"}` }}>
+            {m === "dia" ? "Um dia" : "Período"}
+          </button>
+        ))}
+      </div>
+
+      {mode === "dia" ? (
+        <div className="form-group" style={{ marginBottom: 12 }}>
+          <label>Data da escala</label>
+          <input type="date" value={date} onChange={e => { setDate(e.target.value); setErr(""); }} />
+        </div>
+      ) : (
+        <>
+          <div className="form-grid" style={{ marginBottom: 10 }}>
+            <div className="form-group">
+              <label>De</label>
+              <input type="date" value={start} onChange={e => { setStart(e.target.value); setErr(""); }} />
+            </div>
+            <div className="form-group">
+              <label>Até</label>
+              <input type="date" value={end} min={start} onChange={e => { setEnd(e.target.value); setErr(""); }} />
+            </div>
+          </div>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5,
+            color: "var(--muted)", cursor: "pointer", marginBottom: 12 }}>
+            <input type="checkbox" checked={onlySaturdays} style={{ width: "auto", margin: 0 }}
+              onChange={e => setOnlySaturdays(e.target.checked)} />
+            Somente os sábados do período
+          </label>
+        </>
+      )}
+
+      <div className="form-group" style={{ marginBottom: 14 }}>
+        <label>Observação (opcional)</label>
+        <input type="text" maxLength={120} value={note} onChange={e => setNote(e.target.value)}
+          placeholder="Ex.: Escala de sábado — equipe A" />
+      </div>
+
+      {dates.length > 0 && (
+        <div style={{ fontSize: 12.5, color: "#7c3aed", marginBottom: 12, fontWeight: 600 }}>
+          ✓ {dates.length} dia(s) serão marcados
+        </div>
+      )}
+      {err && <div className="alert alert-error" style={{ marginBottom: 12 }}>{err}</div>}
+
+      <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+        <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
+        <button className="btn btn-primary" onClick={save} disabled={saving}>
+          {saving ? "Salvando…" : "Marcar escala"}
+        </button>
+      </div>
+    </Modal>
   );
 }
