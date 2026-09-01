@@ -292,6 +292,8 @@ export interface MonthlySummary {
 export interface MonthlyReport {
   year: number;
   month: number;
+  period_start: string;
+  period_end: string;
   records: MonthlyRecord[];
   summary: MonthlySummary[];
   total_worked: number;

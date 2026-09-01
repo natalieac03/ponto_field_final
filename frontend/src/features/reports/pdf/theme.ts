@@ -51,6 +51,18 @@ export const brDate = (iso: string): string => {
 export const weekdayAbbr = (iso: string): string =>
   WEEKDAY_ABBR[(new Date(`${iso}T00:00:00`).getDay() + 6) % 7];
 
+/** Nome do mês quando o período é um mês completo; senão, o intervalo de datas. */
+export const periodLabel = (report: { year: number; month: number; period_start?: string; period_end?: string }): string => {
+  const { period_start: s, period_end: e } = report;
+  if (s && e) {
+    const [sy, sm] = s.split("-");
+    const [ey, em] = e.split("-");
+    if (sy === ey && sm === em) return `${MONTHS[Number(sm) - 1]}/${sy}`;
+    return `${brDate(s)} a ${brDate(e)}`;
+  }
+  return `${MONTHS[report.month - 1]} / ${report.year}`;
+};
+
 export const styles = StyleSheet.create({
   page: {
     paddingTop: 40, paddingBottom: 46, paddingHorizontal: 34,

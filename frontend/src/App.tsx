@@ -217,19 +217,21 @@ export default function App() {
           </div>
         </header>
 
-        <div className="tabs">
-          <button className={`tab${adminTab === "banco"      ? " active" : ""}`} onClick={() => setAdminTab("banco")}>Banco de Horas</button>
-          <button className={`tab${adminTab === "aprovacoes" ? " active" : ""}`} onClick={() => setAdminTab("aprovacoes")}>
-            Aprovações
-            {pendingCount > 0 && (
-              <span className="tab-badge">{pendingCount}</span>
-            )}
-          </button>
-          <button className={`tab${adminTab === "atividades" ? " active" : ""}`} onClick={() => setAdminTab("atividades")}>Atividades</button>
-          <button className={`tab${adminTab === "relatorio"  ? " active" : ""}`} onClick={() => setAdminTab("relatorio")}>Relatório Mensal</button>
-          <button className={`tab${adminTab === "ferias"     ? " active" : ""}`} onClick={() => setAdminTab("ferias")}>Férias</button>
-          <button className={`tab${adminTab === "calendario" ? " active" : ""}`} onClick={() => setAdminTab("calendario")}>Calendário</button>
-          <button className={`tab${adminTab === "config"     ? " active" : ""}`} onClick={() => setAdminTab("config")}>Configurações</button>
+        <div className="tabs-scroll">
+          <div className="tabs">
+            <button className={`tab${adminTab === "banco"      ? " active" : ""}`} onClick={() => setAdminTab("banco")}>Banco de Horas</button>
+            <button className={`tab${adminTab === "aprovacoes" ? " active" : ""}`} onClick={() => setAdminTab("aprovacoes")}>
+              Aprovações
+              {pendingCount > 0 && (
+                <span className="tab-badge">{pendingCount}</span>
+              )}
+            </button>
+            <button className={`tab${adminTab === "atividades" ? " active" : ""}`} onClick={() => setAdminTab("atividades")}>Atividades</button>
+            <button className={`tab${adminTab === "relatorio"  ? " active" : ""}`} onClick={() => setAdminTab("relatorio")}>Relatório Mensal</button>
+            <button className={`tab${adminTab === "ferias"     ? " active" : ""}`} onClick={() => setAdminTab("ferias")}>Férias</button>
+            <button className={`tab${adminTab === "calendario" ? " active" : ""}`} onClick={() => setAdminTab("calendario")}>Calendário</button>
+            <button className={`tab${adminTab === "config"     ? " active" : ""}`} onClick={() => setAdminTab("config")}>Configurações</button>
+          </div>
         </div>
 
         {adminTab === "banco"      && <BancoHoras />}

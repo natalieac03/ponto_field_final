@@ -123,8 +123,6 @@ export function MeuEspelho({ employeeId }: { employeeId: number }) {
             disabled={downloading || !s} title="Baixar o espelho deste mês em PDF">
             {downloading ? "Gerando…" : "📄 Baixar espelho (PDF)"}
           </button>
-          <button className="btn btn-secondary btn-sm" onClick={() => window.print()}
-            title="Imprimir esta tela">🖨</button>
         </div>
       </div>
 

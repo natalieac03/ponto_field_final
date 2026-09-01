@@ -102,7 +102,20 @@ def period_stats(recs: Iterable[RecordLike], start: date_cls, end: date_cls,
             reference = max(reference - accounting.partial_deduction(iso), 0)
         if on_leave and dtype != "H3":
             st["ferias"] += 1
-        effective = (rec.effective_minutes or 0) if rec else 0
+
+        # Recalcula pela regra VIGENTE (escala/feriado/férias podem ter mudado
+        # desde que o registro foi gravado) — mesma função usada nas linhas do
+        # detalhamento, para os dois nunca divergirem. Em especial, `effective`
+        # não pode vir do valor persistido: em dias de abono "como trabalhado"
+        # ele precisa ser a referência recalculada, não o que foi gravado então.
+        res = None
+        if rec:
+            res = accounting.compute_day(
+                iso, rec.entry_time, rec.break_start, rec.break_end, rec.exit_time,
+                abono=abono, h1=h1, h2=h2, schedule=schedule,
+                on_leave=on_leave, employee_id=employee_id,
+            )
+        effective = res.effective if res else 0
 
         st["reference"] += reference
         st["worked"] += effective
@@ -116,17 +129,8 @@ def period_stats(recs: Iterable[RecordLike], start: date_cls, end: date_cls,
 
         if rec:
             st["days_worked"] += 1
-            # Recalcula pela regra VIGENTE (escala/feriado/férias podem ter
-            # mudado desde que o registro foi gravado) — mesma função usada
-            # nas linhas do detalhamento, para os dois nunca divergirem.
-            res = accounting.compute_day(
-                iso, rec.entry_time, rec.break_start, rec.break_end, rec.exit_time,
-                abono=abono, h1=h1, h2=h2, schedule=schedule,
-                on_leave=on_leave, employee_id=employee_id,
-            )
             st["normal"] += res.normal
             st["shortfall"] += res.shortfall
-            st["extra50"] += res.extra50
             st["extra100"] += res.extra100
             st["night"] += res.night_bonus
             st["over_limit"] += 1 if res.over_limit else 0
@@ -140,6 +144,13 @@ def period_stats(recs: Iterable[RecordLike], start: date_cls, end: date_cls,
         b = week_map.setdefault(wk, {"week": wk, "label": label, "worked": 0, "reference": 0})
         b["worked"] += effective
         b["reference"] += reference
+
+    # Extra 50% do PERÍODO é líquido: dias de falta/atraso abatem dias de
+    # excesso antes de virar hora extra (mesma fórmula da Folha de Ponto
+    # oficial — H10 = MAX(0, trabalhado − referência − extra100)). Somar o
+    # extra50 diário direto (sempre ≥ 0) infla o total quando há dias de
+    # atraso no mesmo período.
+    st["extra50"] = max(st["balance"] - st["extra100"], 0)
 
     st["weeks"] = [
         {**b, "balance": b["worked"] - b["reference"]}

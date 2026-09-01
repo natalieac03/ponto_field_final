@@ -272,6 +272,15 @@ export const api = {
     downloadFile(`/reports/monthly.csv?year=${year}&month=${month}${exportQuery(f)}`,
       `pontofield_${year}${String(month).padStart(2, "0")}${f.suffix ?? ""}.csv`),
 
+  getRangeReport: (start: string, end: string, employeeId?: number | null) =>
+    request<MonthlyReport>(`/reports/range?start=${start}&end=${end}${employeeId ? `&employee_id=${employeeId}` : ""}`),
+  downloadRangeXlsx: (start: string, end: string, f: ExportFilter = {}) =>
+    downloadFile(`/reports/range.xlsx?start=${start}&end=${end}${exportQuery(f)}`,
+      `pontofield_${start}_a_${end}${f.suffix ?? ""}.xlsx`),
+  downloadRangeCsv: (start: string, end: string, f: ExportFilter = {}) =>
+    downloadFile(`/reports/range.csv?start=${start}&end=${end}${exportQuery(f)}`,
+      `pontofield_${start}_a_${end}${f.suffix ?? ""}.csv`),
+
   getActivity: (days = 90) => request<ActivityLog[]>(`/activity?days=${days}`),
   getEmployeeActivity: (employeeId: number, year: number, month: number) =>
     request<ActivityLog[]>(`/activity/employee/${employeeId}?year=${year}&month=${month}`),

@@ -67,7 +67,7 @@ function StatusPill({ status }: { status: string }) {
 }
 
 /* ─── Lançamento retroativo (entra pendente p/ aprovação do gestor) ─────────── */
-function RetroLaunch({ employeeId, onDone }: { employeeId: number; onDone: () => void }) {
+function RetroLaunch({ employeeId, records, onDone }: { employeeId: number; records: DailyRecord[]; onDone: () => void }) {
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState("");
   const [mode, setMode] = useState<"horarios" | "abono">("horarios");
@@ -81,27 +81,58 @@ function RetroLaunch({ employeeId, onDone }: { employeeId: number; onDone: () =>
   const [ok, setOk] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const existing = date ? records.find(r => r.date === date) ?? null : null;
+
   const reset = () => { setDate(""); setEntry(""); setBs(""); setBe(""); setExit(""); setNote(""); };
+
+  const handleDateChange = (value: string) => {
+    setDate(value);
+    setError("");
+    const found = value ? records.find(r => r.date === value) ?? null : null;
+    if (found) {
+      setMode(found.abono_code ? "abono" : "horarios");
+      setEntry(found.entry_time ?? "");
+      setBs(found.break_start ?? "");
+      setBe(found.break_end ?? "");
+      setExit(found.exit_time ?? "");
+      setAbono((found.abono_code as AbonoCode) ?? "AT");
+      setNote(found.note ?? "");
+    } else {
+      setEntry(""); setBs(""); setBe(""); setExit(""); setNote("");
+    }
+  };
 
   const submit = async () => {
     setError(""); setOk("");
     if (!date) { setError("Escolha a data do lançamento."); return; }
     if (date >= todayISO()) { setError("Use uma data anterior a hoje (lançamento retroativo)."); return; }
-    const payload: RecordCreate = { employee_id: employeeId, date };
-    if (mode === "horarios") {
-      if (!entry) { setError("Informe ao menos o horário de entrada."); return; }
-      payload.entry_time = entry;
-      if (bs) payload.break_start = bs;
-      if (be) payload.break_end = be;
-      if (exit) payload.exit_time = exit;
-    } else {
-      payload.abono_code = abono;
-    }
-    if (note.trim()) payload.note = note.trim();
     setSaving(true);
     try {
-      await api.createRecord(payload);
-      setOk("Lançamento enviado para aprovação do gestor ✓");
+      if (existing) {
+        await api.requestEditRecord(existing.id, {
+          entry_time: mode === "horarios" ? entry : "",
+          break_start: mode === "horarios" ? bs : "",
+          break_end: mode === "horarios" ? be : "",
+          exit_time: mode === "horarios" ? exit : "",
+          abono_code: mode === "abono" ? abono : "",
+          note: note.trim(),
+        });
+        setOk("Edição enviada para aprovação do gestor ✓");
+      } else {
+        const payload: RecordCreate = { employee_id: employeeId, date };
+        if (mode === "horarios") {
+          if (!entry) { setError("Informe ao menos o horário de entrada."); setSaving(false); return; }
+          payload.entry_time = entry;
+          if (bs) payload.break_start = bs;
+          if (be) payload.break_end = be;
+          if (exit) payload.exit_time = exit;
+        } else {
+          payload.abono_code = abono;
+        }
+        if (note.trim()) payload.note = note.trim();
+        await api.createRecord(payload);
+        setOk("Lançamento enviado para aprovação do gestor ✓");
+      }
       reset();
       onDone();
     } catch (e) {
@@ -125,7 +156,7 @@ function RetroLaunch({ employeeId, onDone }: { employeeId: number; onDone: () =>
           <div className="form-grid">
             <div className="form-group">
               <label>Data</label>
-              <input type="date" max={todayISO()} value={date} onChange={e => { setDate(e.target.value); setError(""); }} />
+              <input type="date" max={todayISO()} value={date} onChange={e => handleDateChange(e.target.value)} />
             </div>
             <div className="form-group">
               <label>Tipo de lançamento</label>
@@ -136,12 +167,19 @@ function RetroLaunch({ employeeId, onDone }: { employeeId: number; onDone: () =>
             </div>
           </div>
 
+          {existing && (
+            <div className="alert alert-info" style={{ marginTop: 12 }}>
+              Já existe um registro <strong>{existing.status}</strong> nesse dia — os campos abaixo foram
+              preenchidos com os dados atuais. Salvar envia uma <strong>edição</strong> desse registro para aprovação.
+            </div>
+          )}
+
           {mode === "horarios" ? (
             <div className="form-grid" style={{ marginTop: 12 }}>
               <div className="form-group"><label>Entrada</label><input type="time" value={entry} onChange={e => setEntry(e.target.value)} /></div>
-              <div className="form-group"><label>Saída</label><input type="time" value={exit} onChange={e => setExit(e.target.value)} /></div>
               <div className="form-group"><label>Início intervalo</label><input type="time" value={bs} onChange={e => setBs(e.target.value)} /></div>
               <div className="form-group"><label>Fim intervalo</label><input type="time" value={be} onChange={e => setBe(e.target.value)} /></div>
+              <div className="form-group"><label>Saída</label><input type="time" value={exit} onChange={e => setExit(e.target.value)} /></div>
             </div>
           ) : (
             <div className="form-grid" style={{ marginTop: 12 }}>
@@ -763,7 +801,7 @@ export function EmployeePortal({ employee, onLogout }: Props) {
 
       {tab === "registros" && (
         <>
-        <RetroLaunch employeeId={employee.id} onDone={loadRecords} />
+        <RetroLaunch employeeId={employee.id} records={records} onDone={loadRecords} />
         <div className="card">
           <div className="card-title">Meus registros</div>
           <div className="table-wrap">

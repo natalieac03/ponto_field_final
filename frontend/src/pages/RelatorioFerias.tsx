@@ -191,7 +191,7 @@ function EspelhoCard({ item, visible, lookback }: {
           <tbody>
             {item.records.length === 0 ? (
               <tr><td colSpan={9} className="empty">Nenhum registro no período.</td></tr>
-            ) : item.records.map(r => (
+            ) : [...item.records].sort((a, b) => b.date.localeCompare(a.date)).map(r => (
               <tr key={r.date}>
                 <td className="mono">{br(r.date)}</td>
                 <td className="mono">{r.entry_time ?? "—"}</td>

@@ -134,26 +134,49 @@ def build_employee_bank(records: RecordRepository, employees: EmployeeRepository
 
 
 def filter_monthly(rep: MonthlyReport, employee_id: int | None = None,
-                   start: str | None = None, end: str | None = None) -> MonthlyReport:
+                   start: str | None = None, end: str | None = None,
+                   h1: int = 480, h2: int = 240,
+                   schedules: dict[int, tuple] | None = None) -> MonthlyReport:
     """Recorta o relatório mensal por colaborador e/ou intervalo de datas,
-    recalculando os totais — usado nas exportações filtradas."""
+    RECALCULANDO os resumos pelo sub-período exato (não apenas os registros) —
+    usado nas exportações filtradas. Sem isso, os totais exportados continuavam
+    batendo com o mês inteiro mesmo quando o usuário filtrava por data."""
     if employee_id is None and not start and not end:
         return rep
+
+    win_start = date_cls.fromisoformat(start) if start else date_cls.fromisoformat(rep.period_start)
+    win_end = date_cls.fromisoformat(end) if end else date_cls.fromisoformat(rep.period_end)
 
     recs = [r for r in rep.records
             if (employee_id is None or r.employee_id == employee_id)
             and (not start or r.date >= start)
             and (not end or r.date <= end)]
-    sums = [s for s in rep.summary if employee_id is None or s.employee_id == employee_id]
+
+    by_emp: dict[int, list] = {}
+    for r in recs:
+        by_emp.setdefault(r.employee_id, []).append(r)
+
+    targets = [s for s in rep.summary if employee_id is None or s.employee_id == employee_id]
+    sums = [
+        _make_summary(s.employee_id, s.employee_name, by_emp.get(s.employee_id, []),
+                      banking.period_stats(by_emp.get(s.employee_id, []), win_start, win_end, h1, h2,
+                                           schedule=(schedules or {}).get(s.employee_id),
+                                           leave_days=accounting.leave_days(s.employee_id),
+                                           employee_id=s.employee_id))
+        for s in targets
+    ]
+    sums.sort(key=lambda s: s.employee_name.lower())
 
     data = rep.model_dump()
     data["records"] = [r.model_dump() for r in recs]
     data["summary"] = [s.model_dump() for s in sums]
+    data["period_start"] = win_start.isoformat()
+    data["period_end"]   = win_end.isoformat()
     data["total_worked"]      = sum(s.worked_minutes for s in sums)
     data["total_reference"]   = sum(s.reference_minutes for s in sums)
     data["total_overtime"]    = sum(s.balance for s in sums)
-    data["positive_overtime"] = sum(s.balance for s in sums if s.balance > 0)
-    data["negative_overtime"] = sum(s.balance for s in sums if s.balance < 0)
+    data["positive_overtime"] = sum(s.positive_overtime for s in sums)
+    data["negative_overtime"] = sum(s.negative_overtime for s in sums)
     data["total_normal"]      = sum(s.normal_minutes for s in sums)
     data["total_shortfall"]   = sum(s.shortfall_minutes for s in sums)
     data["total_extra50"]     = sum(s.extra50_minutes for s in sums)
@@ -260,7 +283,41 @@ def build_monthly(records: RecordRepository, employees: EmployeeRepository,
         for eid, recs in by_emp.items()
     ]
     summaries.sort(key=lambda s: s.employee_name.lower())
-    return _assemble_monthly(year, month, records_out, summaries)
+    return _assemble_monthly(year, month, records_out, summaries, start, end)
+
+
+def build_range(records: RecordRepository, employees: EmployeeRepository,
+               settings: SettingsRepository, start: str, end: str) -> MonthlyReport:
+    """Equivalente a `build_monthly`, mas para um intervalo de datas livre, que
+    pode cruzar a virada do mês (ex: 15/07 a 15/08) — usado quando o usuário
+    aplica um filtro de datas para consulta/auditoria/exportação, fora do
+    fechamento oficial (que continua sendo sempre o mês completo)."""
+    h1, h2 = settings.journey_params()
+    emp_by_id = {e.id: e for e in employees.list_all()}
+    win_start, win_end = date_cls.fromisoformat(start), date_cls.fromisoformat(end)
+    all_recs = [r for r in records.list_all() if start <= r.date <= end]
+
+    def name_of(eid: int) -> str:
+        return emp_by_id[eid].name if eid in emp_by_id else "?"
+
+    records_out = [_to_monthly_record(r, name_of(r.employee_id),
+                                      emp_by_id.get(r.employee_id), h1, h2) for r in all_recs]
+
+    by_emp: dict[int, list] = {}
+    for r in all_recs:
+        by_emp.setdefault(r.employee_id, []).append(r)
+
+    summaries = [
+        _make_summary(eid, name_of(eid), recs,
+                      banking.period_stats(recs, win_start, win_end, h1, h2,
+                                           schedule=schedule_tuple(emp_by_id.get(eid)),
+                                           leave_days=accounting.leave_days(eid),
+                                           employee_id=eid))
+        for eid, recs in by_emp.items()
+    ]
+    summaries.sort(key=lambda s: s.employee_name.lower())
+    return _assemble_monthly(win_start.year, win_start.month, records_out, summaries,
+                             win_start, win_end)
 
 
 def build_employee_month(records: RecordRepository, employees: EmployeeRepository,
@@ -278,13 +335,16 @@ def build_employee_month(records: RecordRepository, employees: EmployeeRepositor
                             banking.period_stats(recs, start, end, h1, h2, schedule=schedule_tuple(emp),
                                                  leave_days=accounting.leave_days(emp.id),
                                                  employee_id=emp.id))
-    return _assemble_monthly(year, month, records_out, [summary])
+    return _assemble_monthly(year, month, records_out, [summary], start, end)
 
 
 def _assemble_monthly(year: int, month: int, records_out: list[MonthlyRecord],
-                      summaries: list[MonthlySummary]) -> MonthlyReport:
+                      summaries: list[MonthlySummary],
+                      period_start: date_cls, period_end: date_cls) -> MonthlyReport:
     return MonthlyReport(
-        year=year, month=month, records=records_out, summary=summaries,
+        year=year, month=month,
+        period_start=period_start.isoformat(), period_end=period_end.isoformat(),
+        records=records_out, summary=summaries,
         total_worked=sum(s.worked_minutes for s in summaries),
         total_reference=sum(s.reference_minutes for s in summaries),
         total_overtime=sum(s.balance for s in summaries),

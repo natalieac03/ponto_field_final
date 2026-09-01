@@ -2,7 +2,7 @@ import { Document, Page, Text, View } from "@react-pdf/renderer";
 import type { MonthlyRecord, MonthlyReport, MonthlySummary } from "../../../types";
 import { BarChart, Donut, type Bar } from "./charts";
 import {
-  ABONO_LABELS, brDate, C, DOC_CODE, hm, hmSigned, MONTHS, STATUS_LABELS, styles, weekdayAbbr,
+  ABONO_LABELS, brDate, C, DOC_CODE, hm, hmSigned, MONTHS, periodLabel, STATUS_LABELS, styles, weekdayAbbr,
 } from "./theme";
 
 interface Col { label: string; width: number; align?: "left" | "right" | "center" }
@@ -122,7 +122,7 @@ const DETAIL_COLS: Col[] = [
 function DashboardPage({ report, summaries, scope }: {
   report: MonthlyReport; summaries: MonthlySummary[]; scope: string;
 }) {
-  const period = `${MONTHS[report.month - 1]} / ${report.year}`;
+  const period = periodLabel(report);
   const t = {
     worked: summaries.reduce((a, s) => a + s.worked_minutes, 0),
     reference: summaries.reduce((a, s) => a + s.reference_minutes, 0),
@@ -212,7 +212,7 @@ function DashboardPage({ report, summaries, scope }: {
 }
 
 function EmployeePage({ report, s }: { report: MonthlyReport; s: MonthlySummary }) {
-  const period = `${MONTHS[report.month - 1]} / ${report.year}`;
+  const period = periodLabel(report);
   const recs = report.records
     .filter((r) => r.employee_id === s.employee_id)
     .sort((a, b) => a.date.localeCompare(b.date));

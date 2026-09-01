@@ -64,9 +64,9 @@ export function EditRecordModal({ record, onClose, onSaved }: {
 
       <div className="form-grid">
         <div className="form-group"><label>Entrada</label><input type="time" value={entry} onChange={e => setEntry(e.target.value)} /></div>
-        <div className="form-group"><label>Saída</label><input type="time" value={exit} onChange={e => setExit(e.target.value)} /></div>
         <div className="form-group"><label>Início intervalo</label><input type="time" value={bs} onChange={e => setBs(e.target.value)} /></div>
         <div className="form-group"><label>Fim intervalo</label><input type="time" value={be} onChange={e => setBe(e.target.value)} /></div>
+        <div className="form-group"><label>Saída</label><input type="time" value={exit} onChange={e => setExit(e.target.value)} /></div>
       </div>
 
       <div className="form-group" style={{ marginTop: 12 }}>

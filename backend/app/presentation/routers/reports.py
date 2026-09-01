@@ -57,13 +57,13 @@ def monthly_xlsx(year: int = Query(..., ge=2000, le=2100), month: int = Query(..
                  end: str | None = Query(None),
                  records=Depends(record_repo), employees=Depends(employee_repo),
                  settings=Depends(settings_repo), _admin: dict = Depends(require_admin)):
-    rep = uc.build_monthly(records, employees, settings, year, month)
-    rep = uc.filter_monthly(rep, employee_id, start, end)
     h1, h2 = settings.journey_params()
     from app.application.employees import schedule_tuple
     scheds = {e.id: schedule_tuple(e) for e in employees.list_all()}
+    rep = uc.build_monthly(records, employees, settings, year, month)
+    rep = uc.filter_monthly(rep, employee_id, start, end, h1, h2, scheds)
     content = exporter.build_monthly_xlsx(rep, h1=h1, h2=h2, schedules=scheds,
-                                          start=start, end=end)
+                                          start=rep.period_start, end=rep.period_end)
     who = f"_col{employee_id}" if employee_id else ""
     fname = f"pontofield_{year}{month:02d}{who}.xlsx"
     return Response(
@@ -141,15 +141,73 @@ def monthly_csv(year: int = Query(..., ge=2000, le=2100), month: int = Query(...
                 end: str | None = Query(None),
                 records=Depends(record_repo), employees=Depends(employee_repo),
                 settings=Depends(settings_repo), _admin: dict = Depends(require_admin)):
-    rep = uc.build_monthly(records, employees, settings, year, month)
-    rep = uc.filter_monthly(rep, employee_id, start, end)
     h1, h2 = settings.journey_params()
     from app.application.employees import schedule_tuple
     scheds = {e.id: schedule_tuple(e) for e in employees.list_all()}
+    rep = uc.build_monthly(records, employees, settings, year, month)
+    rep = uc.filter_monthly(rep, employee_id, start, end, h1, h2, scheds)
     content = ("﻿" + exporter.build_monthly_csv(rep, h1=h1, h2=h2, schedules=scheds,
-                                                    start=start, end=end)).encode("utf-8")
+                                                    start=rep.period_start, end=rep.period_end)).encode("utf-8")
     who = f"_col{employee_id}" if employee_id else ""
     fname = f"pontofield_{year}{month:02d}{who}.csv"
+    return Response(
+        content=content,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+    )
+
+
+@router.get("/range", response_model=MonthlyReport)
+def range_report(start: str = Query(..., description="AAAA-MM-DD"),
+                 end: str = Query(..., description="AAAA-MM-DD"),
+                 employee_id: int | None = Query(None),
+                 records=Depends(record_repo), employees=Depends(employee_repo),
+                 settings=Depends(settings_repo), _admin: dict = Depends(require_admin)):
+    """Relatório para um intervalo de datas livre (pode cruzar meses) — usado
+    para consulta/auditoria/exportação fora do fechamento oficial do mês."""
+    rep = uc.build_range(records, employees, settings, start, end)
+    if employee_id is not None:
+        rep = uc.filter_monthly(rep, employee_id)
+    return rep
+
+
+@router.get("/range.xlsx")
+def range_xlsx(start: str = Query(...), end: str = Query(...),
+              employee_id: int | None = Query(None),
+              records=Depends(record_repo), employees=Depends(employee_repo),
+              settings=Depends(settings_repo), _admin: dict = Depends(require_admin)):
+    h1, h2 = settings.journey_params()
+    from app.application.employees import schedule_tuple
+    scheds = {e.id: schedule_tuple(e) for e in employees.list_all()}
+    rep = uc.build_range(records, employees, settings, start, end)
+    if employee_id is not None:
+        rep = uc.filter_monthly(rep, employee_id, h1=h1, h2=h2, schedules=scheds)
+    content = exporter.build_monthly_xlsx(rep, h1=h1, h2=h2, schedules=scheds,
+                                          start=rep.period_start, end=rep.period_end)
+    who = f"_col{employee_id}" if employee_id else ""
+    fname = f"pontofield_{start}_a_{end}{who}.xlsx"
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+    )
+
+
+@router.get("/range.csv")
+def range_csv(start: str = Query(...), end: str = Query(...),
+             employee_id: int | None = Query(None),
+             records=Depends(record_repo), employees=Depends(employee_repo),
+             settings=Depends(settings_repo), _admin: dict = Depends(require_admin)):
+    h1, h2 = settings.journey_params()
+    from app.application.employees import schedule_tuple
+    scheds = {e.id: schedule_tuple(e) for e in employees.list_all()}
+    rep = uc.build_range(records, employees, settings, start, end)
+    if employee_id is not None:
+        rep = uc.filter_monthly(rep, employee_id, h1=h1, h2=h2, schedules=scheds)
+    content = ("﻿" + exporter.build_monthly_csv(rep, h1=h1, h2=h2, schedules=scheds,
+                                                    start=rep.period_start, end=rep.period_end)).encode("utf-8")
+    who = f"_col{employee_id}" if employee_id else ""
+    fname = f"pontofield_{start}_a_{end}{who}.csv"
     return Response(
         content=content,
         media_type="text/csv; charset=utf-8",

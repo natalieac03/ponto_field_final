@@ -120,7 +120,7 @@ def _build_resumo(ws, rep: MonthlyReport) -> None:
     ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=len(RESUMO_HEAD))
     sub = ws.cell(
         row=2, column=1,
-        value=f"Referência: {MONTH_NAMES[rep.month - 1]}/{rep.year}    ·    "
+        value=f"Referência: {_period_label(rep)}    ·    "
               f"Doc: {DOC_CODE}    ·    Gerado em {date.today().strftime('%d/%m/%Y')}",
     )
     sub.font = SUB_FONT
@@ -182,19 +182,21 @@ DETAIL_HEAD = [
 DETAIL_WIDTHS = [11, 5, 5, 8, 9, 9, 8, 8, 8, 9, 8, 8, 8, 9, 10, 24]
 
 
-def _period_days(year: int, month: int, start: str | None, end: str | None) -> list[str]:
-    """Todas as datas do mês (ou do intervalo filtrado), em ordem."""
-    from calendar import monthrange
-    last = monthrange(year, month)[1]
-    ini = date(year, month, 1)
-    fim = date(year, month, last)
-    if start:
-        try: ini = max(ini, date.fromisoformat(start))
-        except ValueError: pass
-    if end:
-        try: fim = min(fim, date.fromisoformat(end))
-        except ValueError: pass
-    out, d = [], ini
+def _period_label(rep: MonthlyReport) -> str:
+    """Nome do mês quando o período é um mês completo; senão, o intervalo."""
+    if rep.period_start and rep.period_end:
+        s, e = date.fromisoformat(rep.period_start), date.fromisoformat(rep.period_end)
+        if (s.year, s.month) == (e.year, e.month):
+            return f"{MONTH_NAMES[s.month - 1]}/{s.year}"
+        return f"{_br_date(rep.period_start)} a {_br_date(rep.period_end)}"
+    return f"{MONTH_NAMES[rep.month - 1]}/{rep.year}"
+
+
+def _period_days(start: str | None, end: str | None) -> list[str]:
+    """Todas as datas do intervalo [start, end], em ordem."""
+    if not start or not end:
+        return []
+    out, d, fim = [], date.fromisoformat(start), date.fromisoformat(end)
     while d <= fim:
         out.append(d.isoformat())
         d += timedelta(days=1)
@@ -202,7 +204,7 @@ def _period_days(year: int, month: int, start: str | None, end: str | None) -> l
 
 
 def _build_employee_sheet(ws, s: MonthlySummary, records: list[MonthlyRecord],
-                          year: int = 0, month: int = 0, h1: int = 480, h2: int = 240,
+                          h1: int = 480, h2: int = 240,
                           schedule: tuple | None = None,
                           start: str | None = None, end: str | None = None) -> None:
     ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(DETAIL_HEAD))
@@ -226,7 +228,7 @@ def _build_employee_sheet(ws, s: MonthlySummary, records: list[MonthlyRecord],
 
     r = head_row + 1
     by_date = {rec.date: rec for rec in records}
-    all_days = _period_days(year, month, start, end) if year and month else sorted(by_date)
+    all_days = _period_days(start, end) or sorted(by_date)
 
     for idx, iso in enumerate(all_days):
         rec = by_date.get(iso)
@@ -327,8 +329,9 @@ def build_monthly_xlsx(rep: MonthlyReport, *, h1: int = 480, h2: int = 240,
     for s in rep.summary:
         recs = sorted(by_emp.get(s.employee_id, []), key=lambda x: x.date)
         ws = wb.create_sheet(_safe_sheet_name(s.employee_name, used_names))
-        _build_employee_sheet(ws, s, recs, rep.year, rep.month, h1, h2,
-                              (schedules or {}).get(s.employee_id), start, end)
+        _build_employee_sheet(ws, s, recs, h1, h2,
+                              (schedules or {}).get(s.employee_id),
+                              start or rep.period_start, end or rep.period_end)
 
     buf = io.BytesIO()
     wb.save(buf)
@@ -347,7 +350,7 @@ def build_monthly_csv(rep: MonthlyReport, *, h1: int = 480, h2: int = 240,
         "Retroativo", "Observacao",
     ])
     # Linhas de TODOS os dias do período — inclusive sem registro
-    dias = _period_days(rep.year, rep.month, start, end) if rep.year and rep.month else []
+    dias = _period_days(start or rep.period_start, end or rep.period_end)
     por_emp: dict[int, dict[str, MonthlyRecord]] = {}
     for rec in rep.records:
         por_emp.setdefault(rec.employee_id, {})[rec.date] = rec

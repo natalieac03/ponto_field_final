@@ -64,9 +64,9 @@ function EditTimesModal({ record, onClose, onSaved }: EditModalProps) {
         <div style={{ fontSize: 12, color: "var(--muted)", marginTop: -6, marginBottom: 18 }}>{fmtDate(record.date)} · {record.employee_name}</div>
         <div className="form-grid" style={{ marginBottom: 16 }}>
           <div className="form-group"><label>Entrada</label><input type="time" value={entryTime} onChange={e => { setEntryTime(e.target.value); setError(""); }} /></div>
-          <div className="form-group"><label>Saída</label><input type="time" value={exitTime} onChange={e => { setExitTime(e.target.value); setError(""); }} /></div>
           <div className="form-group"><label>Início intervalo</label><input type="time" value={breakStart} onChange={e => { setBreakStart(e.target.value); setError(""); }} /></div>
           <div className="form-group"><label>Fim intervalo</label><input type="time" value={breakEnd} onChange={e => { setBreakEnd(e.target.value); setError(""); }} /></div>
+          <div className="form-group"><label>Saída</label><input type="time" value={exitTime} onChange={e => { setExitTime(e.target.value); setError(""); }} /></div>
           <div className="form-group">
             <label>Abono do dia <span style={{ color: "var(--muted)", fontWeight: 400 }}>— opcional</span></label>
             <select value={abono} onChange={e => { setAbono(e.target.value); setError(""); }}>
@@ -193,51 +193,45 @@ export function RelatorioMensal() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo]     = useState("");
 
-  /** Ao escolher uma data de outro mês, navega para esse mês automaticamente
-   *  — o relatório é carregado mês a mês, então sem isso o filtro vinha vazio. */
-  const syncMonthTo = (iso: string) => {
-    if (!iso) return;
-    const [y, m] = iso.split("-").map(Number);
-    if (!y || !m) return;
-    if (y !== year || m !== month) { setYear(y); setMonth(m); }
-  };
-  const handleDateFrom = (v: string) => { setDateFrom(v); syncMonthTo(v); };
-  const handleDateTo = (v: string) => {
-    setDateTo(v);
-    if (!dateFrom) syncMonthTo(v);
-  };
-
   // Modais
   const [editing, setEditing]     = useState<MonthlyRecord | null>(null);
   const [lightbox, setLightbox]   = useState<{ url: string; filename: string } | null>(null);
 
-  const loadReport = (y: number, m: number) => {
+  /** O período efetivamente buscado: as datas do filtro quando definidas,
+   *  senão o mês inteiro do navegador — assim o filtro funciona livremente
+   *  entre meses (inclusive para exportar/fechar), sem travar num mês só. */
+  const monthStart = `${year}-${String(month).padStart(2, "0")}-01`;
+  const monthEnd = new Date(year, month, 0).toISOString().slice(0, 10);
+  const effectiveStart = dateFrom || monthStart;
+  const effectiveEnd = dateTo || monthEnd;
+
+  const loadReport = (start: string, end: string) => {
     setLoading(true);
-    api.getMonthlyReport(y, m).then(setReport).catch(console.error).finally(() => setLoading(false));
+    api.getRangeReport(start, end).then(setReport).catch(console.error).finally(() => setLoading(false));
   };
 
-  useEffect(() => { loadReport(year, month); }, [year, month]);
+  useEffect(() => { loadReport(effectiveStart, effectiveEnd); }, [effectiveStart, effectiveEnd]);
   useEffect(() => { api.getEmployees().then(setEmployees).catch(console.error); }, []);
 
   const changeMonth = (dir: -1 | 1) => {
     const d = new Date(year, month - 1 + dir, 1);
     setYear(d.getFullYear());
     setMonth(d.getMonth() + 1);
+    setDateFrom("");
+    setDateTo("");
   };
 
   const clearFilters = () => { setEmployeeFilter("all"); setDateFrom(""); setDateTo(""); };
 
   const filteredRecords = useMemo(() => {
     if (!report) return [];
-    return report.records.filter(r => {
-      if (employeeFilter !== "all" && r.employee_id !== employeeFilter) return false;
-      if (dateFrom && r.date < dateFrom) return false;
-      if (dateTo   && r.date > dateTo)   return false;
-      return true;
-    });
-  }, [report, employeeFilter, dateFrom, dateTo]);
+    return report.records
+      .filter(r => employeeFilter === "all" || r.employee_id === employeeFilter)
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [report, employeeFilter]);
 
-  // Resumo vem do servidor (saldo por calendário — sábado não trabalhado = débito).
+  // Resumo vem do servidor, já recalculado exatamente para o período buscado
+  // (saldo por calendário — sábado não trabalhado = débito).
   const displaySummary = useMemo(() => {
     if (!report) return [];
     return employeeFilter === "all"
@@ -258,8 +252,6 @@ export function RelatorioMensal() {
     days:      displaySummary.reduce((a, s) => a + s.days, 0),
   }), [displaySummary]);
 
-  const monthTag = `${year}${String(month).padStart(2, "0")}`;
-
   /* ── Exportar Excel / CSV (servidor, formatado A4) — respeitam os filtros ── */
   const exportFilter = useMemo(() => {
     const nome = employeeFilter === "all"
@@ -267,20 +259,18 @@ export function RelatorioMensal() {
         .replace(/\s+/g, "_").toLowerCase();
     return {
       employeeId: employeeFilter === "all" ? null : employeeFilter,
-      start: dateFrom || undefined,
-      end: dateTo || undefined,
       suffix: nome,
     };
-  }, [employeeFilter, dateFrom, dateTo, employees]);
+  }, [employeeFilter, employees]);
 
   const filtroAtivo = employeeFilter !== "all" || Boolean(dateFrom) || Boolean(dateTo);
 
   const exportExcel = async () => {
-    try { await api.downloadMonthlyXlsx(year, month, exportFilter); }
+    try { await api.downloadRangeXlsx(effectiveStart, effectiveEnd, exportFilter); }
     catch (e) { alert(e instanceof Error ? e.message : "Falha ao gerar Excel."); }
   };
   const exportCSV = async () => {
-    try { await api.downloadMonthlyCsv(year, month, exportFilter); }
+    try { await api.downloadRangeCsv(effectiveStart, effectiveEnd, exportFilter); }
     catch (e) { alert(e instanceof Error ? e.message : "Falha ao gerar CSV."); }
   };
 
@@ -289,13 +279,11 @@ export function RelatorioMensal() {
   const exportPDF = async () => {
     if (!report || displaySummary.length === 0) return;
     const nome = employeeFilter === "all" ? null : (displaySummary[0]?.employee_name ?? null);
-    const periodo = dateFrom || dateTo
-      ? ` (${dateFrom ? dateFrom.split("-").reverse().join("/") : "início"} a ${dateTo ? dateTo.split("-").reverse().join("/") : "fim"})`
-      : "";
+    const periodo = ` (${effectiveStart.split("-").reverse().join("/")} a ${effectiveEnd.split("-").reverse().join("/")})`;
     const scope = (nome ?? "Todos os colaboradores") + periodo;
     const suffix = nome ? nome.replace(/\s+/g, "_").toLowerCase() : "todos";
     setPdfBusy(true);
-    try { await downloadMonthlyPdf(report, displaySummary, scope, `pontofield_${monthTag}_${suffix}.pdf`); }
+    try { await downloadMonthlyPdf(report, displaySummary, scope, `pontofield_${effectiveStart}_a_${effectiveEnd}_${suffix}.pdf`); }
     catch (e) { alert(e instanceof Error ? e.message : "Falha ao gerar PDF."); }
     finally { setPdfBusy(false); }
   };
@@ -346,23 +334,19 @@ export function RelatorioMensal() {
           </div>
           <div className="form-group">
             <label>Data inicial</label>
-            <input type="date" value={dateFrom} onChange={e => handleDateFrom(e.target.value)} />
+            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
           </div>
           <div className="form-group">
             <label>Data final</label>
-            <input type="date" value={dateTo} onChange={e => handleDateTo(e.target.value)} />
+            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
           </div>
         </div>
-        {(() => {
-          const mesAtual = `${year}-${String(month).padStart(2, "0")}`;
-          const foraDoMes = [dateFrom, dateTo].filter(Boolean).some(d => !d.startsWith(mesAtual));
-          return foraDoMes ? (
-            <div className="alert alert-error" style={{ marginTop: 12, fontSize: 12 }}>
-              ⚠️ O relatório mostra um mês por vez ({MONTH_NAMES[month - 1]}/{year}). Datas de outros
-              meses não aparecem — ajuste o filtro ou navegue até o mês desejado.
-            </div>
-          ) : null;
-        })()}
+        {(dateFrom || dateTo) && (
+          <p style={{ marginTop: 10, fontSize: 12, color: "var(--muted)" }}>
+            📅 Período buscado: {effectiveStart.split("-").reverse().join("/")} a {effectiveEnd.split("-").reverse().join("/")}
+            {" "}— pode cruzar meses; filtro, exportação e fechamento seguem exatamente esse intervalo.
+          </p>
+        )}
         {(employeeFilter !== "all" || dateFrom || dateTo) && (
           <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 10 }}>
             <span style={{ fontSize: 12, color: "var(--accent)" }}>✓ {filteredRecords.length} registro(s) após filtro</span>
@@ -385,7 +369,9 @@ export function RelatorioMensal() {
           </div>
 
           <div className="card">
-            <div className="card-title">Detalhamento — {MONTH_NAMES[month - 1]}/{year}</div>
+            <div className="card-title">
+              Detalhamento — {effectiveStart.split("-").reverse().join("/")} a {effectiveEnd.split("-").reverse().join("/")}
+            </div>
             <div className="table-wrap">
               <table>
                 <thead>
@@ -394,9 +380,9 @@ export function RelatorioMensal() {
                     <th>Colaborador</th>
                     <th>Tipo</th>
                     <th>Entrada</th>
-                    <th>Saída</th>
                     <th>Início Int.</th>
                     <th>Fim Int.</th>
+                    <th>Saída</th>
                     <th>Trab.</th>
                     <th>Ref.</th>
                     <th>Saldo</th>
@@ -418,6 +404,8 @@ export function RelatorioMensal() {
                           {r.abono_code && <span style={{ marginLeft: 4, fontSize: 10, padding: "1px 5px", borderRadius: 10, background: "rgba(0,174,239,0.12)", color: "#0284c7" }}>{r.abono_code}</span>}
                         </td>
                         <td className="mono">{r.entry_time ?? "—"}</td>
+                        <td className="mono">{r.break_start ?? "—"}</td>
+                        <td className="mono">{r.break_end ?? "—"}</td>
                         <td className="mono">
                           {r.exit_time ?? (r.abono_code ? "—" : (
                             <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, background: "rgba(245,166,35,0.15)", color: "var(--accent2)", fontFamily: "var(--mono)" }}>
@@ -425,8 +413,6 @@ export function RelatorioMensal() {
                             </span>
                           ))}
                         </td>
-                        <td className="mono">{r.break_start ?? "—"}</td>
-                        <td className="mono">{r.break_end ?? "—"}</td>
                         <td className="mono">{r.worked_minutes != null ? fmtMinUnsigned(r.worked_minutes) : "—"}</td>
                         <td className="mono">{fmtMinUnsigned(r.standard_minutes)}</td>
                         <td>{r.overtime_minutes != null ? <Badge minutes={r.overtime_minutes} /> : <span style={{ color: "var(--muted)" }}>—</span>}</td>
@@ -526,7 +512,7 @@ export function RelatorioMensal() {
       )}
 
       {editing && (
-        <EditTimesModal record={editing} onClose={() => setEditing(null)} onSaved={() => loadReport(year, month)} />
+        <EditTimesModal record={editing} onClose={() => setEditing(null)} onSaved={() => loadReport(effectiveStart, effectiveEnd)} />
       )}
 
       {lightbox && (

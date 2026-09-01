@@ -83,6 +83,19 @@ def week_has_shift(employee_id: int | None, iso_date: str) -> bool:
     return any(start <= d <= end for d in days)
 
 
+def week_crosses_month(iso_date: str) -> bool:
+    """A semana (seg-dom) desta data cai em dois meses/anos diferentes?
+
+    Fechamento de folha é sempre por mês-calendário (1º ao último dia, nunca
+    quebrado). Redistribuir as 4h do sábado pelos dias úteis só faz sentido
+    dentro de uma semana inteira contida no mesmo mês — numa semana de virada,
+    metade dos dias ficaria "devendo" horas que só se pagam no mês seguinte.
+    """
+    mon_iso, sun_iso = week_bounds(iso_date)
+    mon, sun = date_cls.fromisoformat(mon_iso), date_cls.fromisoformat(sun_iso)
+    return (mon.year, mon.month) != (sun.year, sun.month)
+
+
 def employee_reference(employee_id: int | None, iso_date: str, abono: str | None,
                        h1: int, h2: int, override: int | None,
                        on_leave: bool = False,
@@ -90,11 +103,15 @@ def employee_reference(employee_id: int | None, iso_date: str, abono: str | None
     """Jornada esperada do dia PARA ESTE COLABORADOR — sempre 44h/semana.
 
     Ordem: férias/licença → folga (FE) → jornada personalizada → domingo/feriado
-    → escala marcada na agenda → redistribuição semanal.
+    → semana de virada de mês → escala marcada na agenda → redistribuição semanal.
 
     Semana COM escala:  8h de seg-sex + 4h no dia escalado  = 44h
     Semana SEM escala:  8h48 de seg-sex, sáb/dom descanso   = 44h
     Trabalho em dia de descanso (sem escala) = hora extra 100%.
+
+    Semana que cruza a virada do mês: usa jornada FIXA (8h dia útil / 4h
+    sábado), igual à Folha oficial — o fechamento mensal nunca é quebrado, e
+    a redistribuição semanal só é coerente dentro de um mês fechado.
     """
     if on_leave or abono in ABONO_FOLGA:
         return 0
@@ -103,9 +120,12 @@ def employee_reference(employee_id: int | None, iso_date: str, abono: str | None
     if day_type(iso_date, holidays) == "H3":   # domingo/feriado
         return 0
 
-    week_target = h1 * 5 + h2                  # 44h
     wd = date_cls.fromisoformat(iso_date).weekday()   # 0=seg … 6=dom
 
+    if week_crosses_month(iso_date):           # semana de virada → fixo
+        return h2 if wd >= 5 else h1
+
+    week_target = h1 * 5 + h2                  # 44h
     if has_shift(employee_id, iso_date):       # dia escalado
         return h2 if wd >= 5 else h1
     if wd >= 5:                                # sáb/dom sem escala = descanso
@@ -244,10 +264,12 @@ def compute_day(
         worked = 0
         night = 0
 
-    # Efetivo: abono "como trabalhado" garante ao menos a referência (sem débito)
+    # Efetivo: abono "como trabalhado" (AB/AT/VG) credita exatamente a
+    # referência do dia, descartando o ponto batido de fato — mesma regra da
+    # Folha oficial (K14 = J14 nesses dias, nunca o valor real registrado).
     effective = worked
     if abono in ABONO_AS_WORKED:
-        effective = max(worked, reference)
+        effective = reference
 
     # ── Classificação DP/Contabilidade ──────────────────────────────────────
     # Dia SEM jornada esperada = descanso do colaborador (domingo, feriado,

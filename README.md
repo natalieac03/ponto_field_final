@@ -143,14 +143,34 @@ frontend/src/
 
 ### Backend
 
+**PowerShell (Windows):**
+
+```powershell
+cd backend
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+Copy-Item .env.example .env
+uvicorn app.main:app --reload --port 8000
+```
+
+> Se o PowerShell bloquear o script de ativação (`.venv\Scripts\Activate.ps1`), rode uma vez:
+> `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned`
+
+**bash / Git Bash / macOS / Linux:**
+
 ```bash
 cd backend
 python3 -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
+source .venv/bin/activate          # Windows (Git Bash): source .venv/Scripts/activate
 pip install -r requirements.txt
 cp .env.example .env
 uvicorn app.main:app --reload --port 8000
 ```
+
+Sem editar nada, o backend sobe com **SQLite vazio** (`backend/che.db`) — veja a seção
+[Usando o backup de produção localmente](#-usando-o-backup-de-produção-localmente) para
+carregar dados reais.
 
 ### Frontend (em outro terminal)
 
@@ -164,6 +184,35 @@ Acesse **http://localhost:5173** — a documentação interativa da API fica em
 **http://localhost:8000/docs**.
 
 > Senha do painel do gestor em desenvolvimento: `1989`
+
+---
+
+## 🗄️ Usando o backup de produção localmente
+
+A produção roda em **PostgreSQL (Neon)**, então um backup gerado por lá (`pg_dump`, ex.:
+`backup_producao.sql`) **não** carrega direto no SQLite do `.env` padrão — são dois bancos
+diferentes. Para rodar localmente com esses dados, suba um Postgres local com Docker e aponte
+o `DATABASE_URL` para ele:
+
+```bash
+# 1. Sobe um Postgres local (uma vez só; os dados ficam no volume "pontofield_pgdata")
+docker run -d --name pontofield-pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=pontofield \
+  -p 5432:5432 -v pontofield_pgdata:/var/lib/postgresql/data postgres:17
+
+# 2. Restaura o dump (ajuste o caminho se o arquivo estiver em outro lugar)
+docker exec -i pontofield-pg psql -U postgres -d pontofield < backup_producao.sql
+
+# 3. Aponta o backend/.env para esse banco
+#    DATABASE_URL=postgresql://postgres:postgres@localhost:5432/pontofield
+```
+
+Depois de restaurar uma vez, é só deixar o container `pontofield-pg` rodando (ou
+`docker start pontofield-pg`) e manter essa linha no `.env` — o schema já vem migrado pelo
+próprio dump, e qualquer migração leve nova é aplicada automaticamente no próximo startup do
+backend.
+
+> Quer voltar ao SQLite vazio de desenvolvimento? Basta trocar `DATABASE_URL` de volta para
+> `sqlite:///./che.db` no `.env`.
 
 ---
 

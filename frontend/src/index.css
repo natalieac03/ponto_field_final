@@ -60,7 +60,7 @@ body {
 }
 
 .shell {
-  max-width: 980px;
+  max-width: min(1440px, 96vw);
   margin: 0 auto;
   padding: 0 18px 72px;
 }
@@ -482,6 +482,12 @@ hr {
   background: rgba(220, 38, 38, 0.08);
   border: 1px solid rgba(220, 38, 38, 0.16);
   color: var(--danger);
+}
+
+.alert-info {
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  color: #2563eb;
 }
 
 .month-nav {
@@ -1178,13 +1184,26 @@ hr {
   }
 
   /* Tabs viram uma tira de scroll horizontal (linha única, "app-like") */
+  .tabs-scroll {
+    position: relative;
+    margin-left: -12px;
+    margin-right: -12px;
+  }
+  .tabs-scroll::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 1px;
+    right: 0;
+    width: 28px;
+    background: linear-gradient(to left, var(--bg), transparent);
+    pointer-events: none;
+  }
   .tabs {
     flex-wrap: nowrap;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
-    margin-left: -12px;
-    margin-right: -12px;
     padding: 0 12px;
   }
   .tabs::-webkit-scrollbar {

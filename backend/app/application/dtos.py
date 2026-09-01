@@ -585,6 +585,8 @@ class MonthlySummary(BaseModel):
 class MonthlyReport(BaseModel):
     year: int
     month: int
+    period_start: str = ""
+    period_end: str = ""
     records: list[MonthlyRecord]
     summary: list[MonthlySummary]
     total_worked: int
