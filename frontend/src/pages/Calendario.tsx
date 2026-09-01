@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
+import { Modal } from "../components/Modal";
+import { LEAVE_KIND_LABEL } from "../types";
 import type { CalendarDay, CalendarKind, Employee, EmployeeLeave, EmployeeShift, HolidaySuggestion, LeaveKind } from "../types";
 
 const MONTHS = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
@@ -254,7 +256,7 @@ export function Calendario() {
                       <td className="mono">{lv.start_date.split("-").reverse().join("/")}</td>
                       <td className="mono">{lv.end_date.split("-").reverse().join("/")}</td>
                       <td className="mono">{dias}</td>
-                      <td style={{ fontSize: 12 }}>{LEAVE_LABEL[lv.kind] ?? lv.kind}</td>
+                      <td style={{ fontSize: 12 }}>{LEAVE_KIND_LABEL[lv.kind] ?? lv.kind}</td>
                       <td style={{ fontSize: 12, color: "var(--muted)" }}>{lv.note ?? "—"}</td>
                       <td>
                         <button className="btn btn-danger btn-sm"
@@ -291,10 +293,6 @@ export function Calendario() {
   );
 }
 
-const LEAVE_LABEL: Record<string, string> = {
-  ferias: "🏖 Férias", licenca: "📋 Licença", folga: "😴 Folga programada",
-};
-
 /* ─── Modal: marcar férias / licença ─── */
 function LeaveModal({ employees, onClose, onSaved }: {
   employees: Employee[]; onClose: () => void; onSaved: (msg: string) => void;
@@ -324,82 +322,73 @@ function LeaveModal({ employees, onClose, onSaved }: {
       await api.addLeave({ employee_id: Number(employeeId), start_date: start, end_date: end, kind,
         ...(note.trim() ? { note: note.trim() } : {}) });
       const nome = employees.find(e => e.id === Number(employeeId))?.name ?? "Colaborador";
-      onSaved(`${dias} dia(s) de ${LEAVE_LABEL[kind].replace(/^\S+\s/, "").toLowerCase()} para ${nome}.`);
+      onSaved(`${dias} dia(s) de ${LEAVE_KIND_LABEL[kind].replace(/^\S+\s/, "").toLowerCase()} para ${nome}.`);
       onClose();
     } catch (e) { setErr(e instanceof Error ? e.message : "Erro."); }
     finally { setSaving(false); }
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(11,21,38,0.55)", display: "flex",
-      alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 16 }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "var(--surface)", borderRadius: 16,
-        padding: 26, width: "100%", maxWidth: 440, boxShadow: "var(--shadow-md)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-          <div style={{ fontSize: 14, fontWeight: 700 }}>🏖 Marcar férias / licença</div>
-          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18,
-            cursor: "pointer", color: "var(--muted)", fontFamily: "var(--font)" }}>✕</button>
-        </div>
-        <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 16 }}>
-          Nesses dias o colaborador não tem jornada esperada — nada é descontado do banco de horas.
-        </div>
+    <Modal title="🏖 Marcar férias / licença" onClose={onClose} maxWidth={440}>
+      <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 16 }}>
+        Nesses dias o colaborador não tem jornada esperada — nada é descontado do banco de horas.
+      </div>
 
-        <div className="form-group" style={{ marginBottom: 12 }}>
-          <label>Colaborador *</label>
-          <select value={employeeId} onChange={e => { setEmployeeId(e.target.value === "" ? "" : Number(e.target.value)); setErr(""); }}>
-            <option value="">— selecione —</option>
-            {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-          </select>
+      <div className="form-group" style={{ marginBottom: 12 }}>
+        <label>Colaborador *</label>
+        <select value={employeeId} onChange={e => { setEmployeeId(e.target.value === "" ? "" : Number(e.target.value)); setErr(""); }}>
+          <option value="">— selecione —</option>
+          {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+        </select>
+      </div>
+
+      <div className="form-grid" style={{ marginBottom: 12 }}>
+        <div className="form-group">
+          <label>De</label>
+          <input type="date" value={start} onChange={e => { setStart(e.target.value); setErr(""); }} />
         </div>
-
-        <div className="form-grid" style={{ marginBottom: 12 }}>
-          <div className="form-group">
-            <label>De</label>
-            <input type="date" value={start} onChange={e => { setStart(e.target.value); setErr(""); }} />
-          </div>
-          <div className="form-group">
-            <label>Até</label>
-            <input type="date" value={end} min={start} onChange={e => { setEnd(e.target.value); setErr(""); }} />
-          </div>
-        </div>
-
-        <div className="form-group" style={{ marginBottom: 12 }}>
-          <label>Tipo</label>
-          <div style={{ display: "flex", gap: 8 }}>
-            {(["ferias", "licenca", "folga"] as LeaveKind[]).map(k => (
-              <button key={k} onClick={() => setKind(k)}
-                style={{ flex: 1, padding: "9px 6px", borderRadius: 10, cursor: "pointer", fontSize: 12,
-                  fontWeight: 600, fontFamily: "var(--font)",
-                  background: kind === k ? "rgba(13,148,136,0.10)" : "var(--surface2)",
-                  color: kind === k ? "#0d9488" : "var(--muted)",
-                  border: `1px solid ${kind === k ? "#0d9488" : "var(--border2)"}` }}>
-                {LEAVE_LABEL[k]}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="form-group" style={{ marginBottom: 14 }}>
-          <label>Observação (opcional)</label>
-          <input type="text" maxLength={120} value={note} onChange={e => setNote(e.target.value)}
-            placeholder="Ex.: Férias anuais 2026" />
-        </div>
-
-        {dias > 0 && (
-          <div style={{ fontSize: 12.5, color: "var(--accent)", marginBottom: 12, fontWeight: 600 }}>
-            ✓ {dias} dia(s) no período
-          </div>
-        )}
-        {err && <div className="alert alert-error" style={{ marginBottom: 12 }}>{err}</div>}
-
-        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-          <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
-          <button className="btn btn-primary" onClick={save} disabled={saving}>
-            {saving ? "Salvando…" : "Marcar"}
-          </button>
+        <div className="form-group">
+          <label>Até</label>
+          <input type="date" value={end} min={start} onChange={e => { setEnd(e.target.value); setErr(""); }} />
         </div>
       </div>
-    </div>
+
+      <div className="form-group" style={{ marginBottom: 12 }}>
+        <label>Tipo</label>
+        <div style={{ display: "flex", gap: 8 }}>
+          {(["ferias", "licenca", "folga"] as LeaveKind[]).map(k => (
+            <button key={k} onClick={() => setKind(k)}
+              style={{ flex: 1, padding: "9px 6px", borderRadius: 10, cursor: "pointer", fontSize: 12,
+                fontWeight: 600, fontFamily: "var(--font)",
+                background: kind === k ? "rgba(13,148,136,0.10)" : "var(--surface2)",
+                color: kind === k ? "#0d9488" : "var(--muted)",
+                border: `1px solid ${kind === k ? "#0d9488" : "var(--border2)"}` }}>
+              {LEAVE_KIND_LABEL[k]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="form-group" style={{ marginBottom: 14 }}>
+        <label>Observação (opcional)</label>
+        <input type="text" maxLength={120} value={note} onChange={e => setNote(e.target.value)}
+          placeholder="Ex.: Férias anuais 2026" />
+      </div>
+
+      {dias > 0 && (
+        <div style={{ fontSize: 12.5, color: "var(--accent)", marginBottom: 12, fontWeight: 600 }}>
+          ✓ {dias} dia(s) no período
+        </div>
+      )}
+      {err && <div className="alert alert-error" style={{ marginBottom: 12 }}>{err}</div>}
+
+      <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+        <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
+        <button className="btn btn-primary" onClick={save} disabled={saving}>
+          {saving ? "Salvando…" : "Marcar"}
+        </button>
+      </div>
+    </Modal>
   );
 }
 

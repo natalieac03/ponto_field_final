@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../api/client";
+import { LEAVE_KIND_LABEL } from "../types";
 import type { VacationReport, VacationReportItem } from "../types";
 
 const hm = (m: number | null | undefined) => {
@@ -9,10 +10,6 @@ const hm = (m: number | null | undefined) => {
   return `${sign}${Math.floor(a / 60)}h${String(a % 60).padStart(2, "0")}`;
 };
 const br = (iso: string) => iso.split("-").reverse().join("/");
-
-const KIND_LABEL: Record<string, string> = {
-  ferias: "🏖 Férias", licenca: "📋 Licença", folga: "😴 Folga programada",
-};
 
 /** Relatório de quem entra de férias no período, com o espelho dos últimos N dias. */
 export function RelatorioFerias() {
@@ -125,7 +122,7 @@ export function RelatorioFerias() {
                       <tr key={`${it.employee_id}-${it.leave_start}`}>
                         <td style={{ fontWeight: 500 }}>{it.employee_name}</td>
                         <td className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>{it.cpf_masked ?? "—"}</td>
-                        <td style={{ fontSize: 12 }}>{KIND_LABEL[it.leave_kind] ?? it.leave_kind}</td>
+                        <td style={{ fontSize: 12 }}>{LEAVE_KIND_LABEL[it.leave_kind as keyof typeof LEAVE_KIND_LABEL] ?? it.leave_kind}</td>
                         <td className="mono" style={{ fontSize: 12 }}>{br(it.leave_start)} – {br(it.leave_end)}</td>
                         <td className="mono">{it.leave_days}</td>
                         <td className="mono">{hm(it.worked_minutes)}</td>

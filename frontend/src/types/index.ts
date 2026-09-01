@@ -38,6 +38,10 @@ export interface Employee extends WeeklySchedule, EmployeeProfileUpdate {
 
 export type LeaveKind = "ferias" | "licenca" | "folga";
 
+export const LEAVE_KIND_LABEL: Record<LeaveKind, string> = {
+  ferias: "🏖 Férias", licenca: "📋 Licença", folga: "😴 Folga programada",
+};
+
 export interface VacationReportRecord {
   date: string;
   entry_time: string | null;
