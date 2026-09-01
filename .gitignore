@@ -10,6 +10,8 @@ env/
 # ── Banco e dados persistentes (NUNCA versionar — dados de RH) ──
 *.db
 *.sqlite3
+*.sql
+*.dump
 backend/uploads/
 deploy/data/
 deploy/backups/
