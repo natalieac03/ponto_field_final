@@ -277,6 +277,7 @@ export function Calendario() {
 
       {editing && (
         <DayModal date={editing} existing={byDate[editing] ?? null}
+          shiftNames={shiftByDate[editing] ?? []} leaveNames={leaveByDate[editing] ?? []}
           onClose={() => setEditing(null)} onSaved={() => { load(); }} />
       )}
 
@@ -392,8 +393,9 @@ function LeaveModal({ employees, onClose, onSaved }: {
   );
 }
 
-function DayModal({ date, existing, onClose, onSaved }: {
-  date: string; existing: CalendarDay | null; onClose: () => void; onSaved: () => void;
+function DayModal({ date, existing, shiftNames, leaveNames, onClose, onSaved }: {
+  date: string; existing: CalendarDay | null; shiftNames: string[]; leaveNames: string[];
+  onClose: () => void; onSaved: () => void;
 }) {
   const [kind, setKind] = useState<CalendarKind>(existing?.kind ?? "feriado");
   const [label, setLabel] = useState(existing?.label ?? "");
@@ -422,11 +424,35 @@ function DayModal({ date, existing, onClose, onSaved }: {
     finally { setSaving(false); }
   };
 
+  const hasEvents = shiftNames.length > 0 || leaveNames.length > 0;
+
   return (
-    <Modal title={`📅 ${d}/${m}/${y}`} onClose={onClose} maxWidth={420}>
+    <Modal title={`📅 ${d}/${m}/${y}`} onClose={onClose} maxWidth={480}>
       <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 16 }}>
         Dia inteiro = referência 0 (H3). Parcial = abate N minutos da jornada.
       </div>
+
+      {hasEvents && (
+        <div className="form-group" style={{ marginBottom: 16 }}>
+          <label>Eventos do dia</label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {shiftNames.map(n => (
+              <span key={`sh-${n}`} style={{ display: "inline-flex", alignItems: "center", gap: 6,
+                background: "rgba(124,58,237,0.10)", border: "1px solid rgba(124,58,237,0.35)",
+                color: "#7c3aed", borderRadius: 20, padding: "6px 12px", fontSize: 12, fontWeight: 600 }}>
+                📋 {n} — escala
+              </span>
+            ))}
+            {leaveNames.map(n => (
+              <span key={`lv-${n}`} style={{ display: "inline-flex", alignItems: "center", gap: 6,
+                background: "rgba(13,148,136,0.10)", border: "1px solid rgba(13,148,136,0.35)",
+                color: "#0d9488", borderRadius: 20, padding: "6px 12px", fontSize: 12, fontWeight: 600 }}>
+                🏖 {n} — férias
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="form-group" style={{ marginBottom: 12 }}>
         <label>Tipo</label>
