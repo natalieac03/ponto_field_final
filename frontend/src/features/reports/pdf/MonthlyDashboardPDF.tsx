@@ -3,82 +3,10 @@ import type { MonthlyRecord, MonthlyReport, MonthlySummary } from "../../../type
 import { BarChart, Donut, type Bar } from "./charts";
 import { CATEGORY_BG, CategoryLegend } from "./categoryStyle";
 import { type DayCtx, lookupDay } from "./dayContext";
+import { Brand, type Col, Footer, Kpi, Row, SignatureBlock, TableHead } from "./PdfLayout";
 import {
-  ABONO_LABELS, brDate, C, DOC_CODE, hm, hmSigned, MONTHS, periodLabel, STATUS_LABELS, styles, weekdayAbbr,
+  ABONO_LABELS, brDate, C, hm, hmSigned, MONTHS, periodLabel, STATUS_LABELS, styles, weekdayAbbr,
 } from "./theme";
-
-interface Col { label: string; width: number; align?: "left" | "right" | "center" }
-
-function Brand({ title, subtitle }: { title: string; subtitle: string }) {
-  return (
-    <View>
-      <View style={styles.brandBar}>
-        <View style={styles.brandLeft}>
-          <Text style={styles.brandField}>FIELD</Text>
-          <Text style={styles.brandTech}> TECHNOLOGY</Text>
-        </View>
-        <Text style={styles.brandDoc}>{DOC_CODE}</Text>
-      </View>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.subtitle}>{subtitle}</Text>
-      <View style={styles.rule} />
-    </View>
-  );
-}
-
-function Footer() {
-  return (
-    <View style={styles.footer} fixed>
-      <Text>Field Technology — Banco de Horas</Text>
-      <Text render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`} />
-    </View>
-  );
-}
-
-function SignatureBlock({ roles = ["Gestor", "RH"] }: { roles?: string[] }) {
-  return (
-    <View style={styles.signRow} wrap={false}>
-      {roles.map((role) => (
-        <View key={role} style={styles.signCell}>
-          <View style={styles.signLine} />
-          <Text style={styles.signRole}>{role}</Text>
-          <Text style={styles.signHint}>Assinatura e data</Text>
-        </View>
-      ))}
-    </View>
-  );
-}
-
-function Kpi({ label, value, color }: { label: string; value: string; color?: string }) {
-  return (
-    <View style={styles.kpiCard}>
-      <Text style={styles.kpiLabel}>{label}</Text>
-      <Text style={[styles.kpiValue, { color: color ?? C.dark }]}>{value}</Text>
-    </View>
-  );
-}
-
-function TableHead({ cols }: { cols: Col[] }) {
-  return (
-    <View style={styles.tHead}>
-      {cols.map((c, i) => (
-        <Text key={i} style={[styles.tHeadCell, { width: c.width, textAlign: c.align ?? "left" }]}>{c.label}</Text>
-      ))}
-    </View>
-  );
-}
-
-function Row({ cols, cells, bg, bold }: { cols: Col[]; cells: string[]; bg?: string; bold?: boolean }) {
-  const base = bold ? styles.tTotal : styles.tRow;
-  const cellStyle = bold ? styles.tTotalCell : styles.tCell;
-  return (
-    <View style={[base, bg ? { backgroundColor: bg } : {}]} wrap={false}>
-      {cells.map((v, i) => (
-        <Text key={i} style={[cellStyle, { width: cols[i].width, textAlign: cols[i].align ?? "left" }]}>{v}</Text>
-      ))}
-    </View>
-  );
-}
 
 /* ── Agrega semanas de vários colaboradores por número de semana ── */
 function aggregateWeeks(summaries: MonthlySummary[]): Bar[] {
@@ -208,7 +136,7 @@ function DashboardPage({ report, summaries, scope }: {
 
       <SignatureBlock />
 
-      <Footer />
+      <Footer label="Banco de Horas" />
     </Page>
   );
 }
@@ -271,7 +199,7 @@ function EmployeePage({ report, s, dayCtx }: { report: MonthlyReport; s: Monthly
 
       <SignatureBlock />
 
-      <Footer />
+      <Footer label="Banco de Horas" />
     </Page>
   );
 }
