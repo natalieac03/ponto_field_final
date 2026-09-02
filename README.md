@@ -285,7 +285,7 @@ uvicorn app.main:app --host 0.0.0.0 --port $PORT
 - [x] Testes automatizados do domínio (`backend/tests/`)
 - [x] Exportação do AFD (Portaria 671) para uso interno — o sistema não é um REP homologado, então o arquivo não substitui o AFD de um REP certificado para fiscalização
 - [x] Notificação de ponto não batido (painel de Pendências)
-- [ ] Feriados carregados por ano via API (hoje: biblioteca + calendário editável)
+- [x] Feriados nacionais carregados por ano via API (BrasilAPI, com fallback para a biblioteca local) + estaduais/municipais/calendário editável
 
 ---
 
