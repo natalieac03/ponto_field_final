@@ -4,7 +4,8 @@ Lógica pura (sem I/O) p/ ser testável. Regras em [[folha-ponto-spec]]:
 - Tipo de dia: H1 (útil, 8h) | H2 (sábado, 4h) | H3 (domingo/feriado, 0h) = 44h/semana.
 - Banco de horas = Σ(efetivo − referência) acumulado.
 - Abonos AB/AT/VG contam como trabalhado; FA gera débito; FE zera a referência.
-- Extra 50% (H1/H2 acima da jornada), Extra 100% (H3), adicional noturno 22h–05h (+20%).
+- Extra 50% (acima da jornada, ou sábado/facultativo sem escala), Extra 100%
+  (domingo e feriado não facultativo, Súmula 146/TST), adicional noturno 22h–05h (+20%).
 """
 from __future__ import annotations
 
@@ -22,6 +23,7 @@ from app.domain.time_utils import calc_break_minutes, calc_worked_minutes, time_
 _CAL_HOLIDAYS: set[str] | None = None      # dias inteiros (feriado/facultativo/evento)
 _CAL_PARTIAL: dict[str, int] = {}          # data → minutos abatidos (dispensa parcial)
 _CAL_LABELS: dict[str, str] = {}           # data → rótulo (p/ relatórios)
+_CAL_KINDS: dict[str, str] = {}            # data → feriado | facultativo | evento
 
 
 # Ausências programadas por colaborador: {employee_id: {data_iso: rótulo}}
@@ -107,7 +109,8 @@ def employee_reference(employee_id: int | None, iso_date: str, abono: str | None
 
     Semana COM escala:  8h de seg-sex + 4h no dia escalado  = 44h
     Semana SEM escala:  8h48 de seg-sex, sáb/dom descanso   = 44h
-    Trabalho em dia de descanso (sem escala) = hora extra 100%.
+    Trabalho em dia de descanso: domingo/feriado não facultativo = extra 100%;
+    sábado sem escala / facultativo / evento = extra 50% (ver `compute_day`).
 
     Semana que cruza a virada do mês: usa jornada FIXA (8h dia útil / 4h
     sábado), igual à Folha oficial — o fechamento mensal nunca é quebrado, e
@@ -136,12 +139,14 @@ def employee_reference(employee_id: int | None, iso_date: str, abono: str | None
 
 
 def set_calendar(holidays: set[str], partial: dict[str, int],
-                 labels: dict[str, str] | None = None) -> None:
+                 labels: dict[str, str] | None = None,
+                 kinds: dict[str, str] | None = None) -> None:
     """Instalado no startup e a cada mudança do calendário editável."""
-    global _CAL_HOLIDAYS, _CAL_PARTIAL, _CAL_LABELS
+    global _CAL_HOLIDAYS, _CAL_PARTIAL, _CAL_LABELS, _CAL_KINDS
     _CAL_HOLIDAYS = set(holidays)
     _CAL_PARTIAL = dict(partial)
     _CAL_LABELS = dict(labels or {})
+    _CAL_KINDS = dict(kinds or {})
 
 
 def active_holidays() -> set[str]:
@@ -154,6 +159,10 @@ def partial_deduction(iso_date: str) -> int:
 
 def calendar_label(iso_date: str) -> str | None:
     return _CAL_LABELS.get(iso_date)
+
+
+def calendar_kind(iso_date: str) -> str | None:
+    return _CAL_KINDS.get(iso_date)
 
 
 def day_type(iso_date: str, holidays: set[str] | None = None) -> str:
@@ -271,18 +280,25 @@ def compute_day(
     if abono in ABONO_AS_WORKED:
         effective = reference
 
-    # ── Classificação DP/Contabilidade ──────────────────────────────────────
+    # ── Classificação DP/Contabilidade (CLT Art. 59 + Súmula 146 do TST) ────
     # Dia SEM jornada esperada = descanso do colaborador (domingo, feriado,
-    # sábado de quem não faz escala, folga, férias/licença): todo o trabalho
-    # é hora EM DOBRO (100%).
+    # sábado de quem não faz escala, ponto facultativo, folga, férias/licença).
+    # Dentro desse grupo, só domingo e feriado NÃO facultativo são descanso
+    # semanal remunerado de fato — trabalho nesses dias é EM DOBRO (100%),
+    # conforme Súmula 146/TST. Sábado sem escala e ponto facultativo/evento
+    # não são descanso legal (não há DSR a dobrar): o trabalho ali é extra
+    # normal (50%), igual a qualquer hora excedente da jornada.
     # Dia COM jornada: até a jornada = horas NORMAIS; o que passa = extra 50%
     # (ficar depois do expediente ou entrar mais cedo). O que falta = atraso.
     rest_day = reference == 0
     if rest_day:
         normal = 0
-        extra50 = 0
-        extra100 = worked
         shortfall = 0
+        is_sunday = date_cls.fromisoformat(iso_date).weekday() == 6
+        is_mandatory_holiday = calendar_kind(iso_date) == "feriado"
+        dobra = is_sunday or is_mandatory_holiday or on_leave or (abono in ABONO_FOLGA)
+        extra50 = 0 if dobra else worked
+        extra100 = worked if dobra else 0
     else:
         normal = min(worked, reference)
         extra50 = max(worked - reference, 0)

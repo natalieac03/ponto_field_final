@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useThemedAssets } from "../assets";
 import { api } from "../api/client";
 import { Avatar } from "../components/Avatar";
@@ -9,9 +9,10 @@ import { isImage, isPdf } from "../helpers/attachments";
 import { MeuEspelho } from "../features/espelho/MeuEspelho";
 import { EditRecordModal } from "../features/records/EditRecordModal";
 import { ActivityFeed } from "../features/activity/ActivityFeed";
+import { CalendarioColaborador } from "./CalendarioColaborador";
 import type { AbonoCode, ActivityLog, DailyRecord, Employee, RecordCreate } from "../types";
 
-type Tab = "ponto" | "espelho" | "registros" | "atividades";
+type Tab = "ponto" | "espelho" | "registros" | "atividades" | "calendario";
 
 const FEEDBACK_DURATION_MS = 7000;
 const NOTE_MAX = 500;
@@ -54,6 +55,38 @@ interface Props {
 
 function ActionIcon({ src, alt, muted = false }: { src: string; alt: string; muted?: boolean }) {
   return <img src={src} alt={alt} style={{ width: 42, height: 42, objectFit: "contain", opacity: muted ? 0.38 : 1, filter: muted ? "grayscale(1)" : "none" }} />;
+}
+
+/** Pop-up pós-login: avisa sobre registros em aberto (sem saída) ou pendentes (aguardando aprovação). */
+function PendingRecordsAlert({ openCount, pendingCount, onGoToRecords, onClose }: {
+  openCount: number; pendingCount: number; onGoToRecords: () => void; onClose: () => void;
+}) {
+  const total = openCount + pendingCount;
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, background: "rgba(11, 21, 38, 0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 16 }}
+      onClick={onClose}
+    >
+      <div onClick={e => e.stopPropagation()} style={{ background: "var(--surface)", borderRadius: 16, padding: 28, width: "100%", maxWidth: 420, boxShadow: "var(--shadow-md)" }}>
+        <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>⚠️ Pendências no seu ponto</div>
+        <p style={{ fontSize: 13, color: "var(--text)", marginBottom: 14, lineHeight: 1.5 }}>
+          Você tem <strong>{total} registro{total > 1 ? "s" : ""}</strong> que precisa{total > 1 ? "m" : ""} de atenção:
+        </p>
+        <ul style={{ fontSize: 13, color: "var(--muted)", marginBottom: 20, paddingLeft: 18, lineHeight: 1.6 }}>
+          {openCount > 0 && (
+            <li><strong>{openCount}</strong> em aberto — falta registrar a saída de um dia anterior</li>
+          )}
+          {pendingCount > 0 && (
+            <li><strong>{pendingCount}</strong> pendente{pendingCount > 1 ? "s" : ""} — aguardando aprovação do gestor</li>
+          )}
+        </ul>
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+          <button className="btn btn-secondary" onClick={onClose}>Depois</button>
+          <button className="btn btn-primary" onClick={onGoToRecords}>Ir para Meus Registros</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function StatusPill({ status }: { status: string }) {
@@ -244,6 +277,11 @@ export function EmployeePortal({ employee, onLogout }: Props) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
+  // Alerta pós-login de registros em aberto/pendentes + filtro em "Meus Registros"
+  const [showPendingAlert, setShowPendingAlert] = useState(false);
+  const [onlyIssues, setOnlyIssues] = useState(false);
+  const pendingAlertShownRef = useRef(false);
+
   const photoUrl = me?.photo ? api.employeePhotoUrl(me.photo) : null;
 
   // Form de alterar senha
@@ -358,6 +396,28 @@ export function EmployeePortal({ employee, onLogout }: Props) {
 
   const todayRecord = records.find(r => r.date === todayISO()) ?? null;
   const state = getPunchState(todayRecord);
+
+  // Registros em aberto (dia anterior sem saída registrada) ou pendentes (aguardando aprovação)
+  const openRecords = useMemo(() => {
+    const today = todayISO();
+    return records.filter(r => r.date < today && !!r.entry_time && !r.exit_time && !r.abono_code);
+  }, [records]);
+  const pendingRecords = useMemo(() => records.filter(r => r.status === "pendente"), [records]);
+  const issueRecords = useMemo(() => {
+    const ids = new Set<number>();
+    const list: DailyRecord[] = [];
+    for (const r of [...openRecords, ...pendingRecords]) {
+      if (!ids.has(r.id)) { ids.add(r.id); list.push(r); }
+    }
+    return list;
+  }, [openRecords, pendingRecords]);
+
+  // Mostra o alerta uma única vez, logo após o primeiro carregamento de registros do login
+  useEffect(() => {
+    if (pendingAlertShownRef.current || records.length === 0) return;
+    pendingAlertShownRef.current = true;
+    if (issueRecords.length > 0) setShowPendingAlert(true);
+  }, [records, issueRecords]);
 
   // Sync da observação com o record do dia
   useEffect(() => {
@@ -633,9 +693,12 @@ export function EmployeePortal({ employee, onLogout }: Props) {
         <button className={`tab${tab === "espelho" ? " active" : ""}`} onClick={() => setTab("espelho")}>Meu Espelho</button>
         <button className={`tab${tab === "registros" ? " active" : ""}`} onClick={() => setTab("registros")}>Meus Registros</button>
         <button className={`tab${tab === "atividades" ? " active" : ""}`} onClick={() => setTab("atividades")}>Atividades</button>
+        <button className={`tab${tab === "calendario" ? " active" : ""}`} onClick={() => setTab("calendario")}>Calendário</button>
       </div>
 
       {tab === "espelho" && <MeuEspelho employeeId={employee.id} />}
+
+      {tab === "calendario" && <CalendarioColaborador />}
 
       {tab === "atividades" && (
         <div className="card">
@@ -803,7 +866,21 @@ export function EmployeePortal({ employee, onLogout }: Props) {
         <>
         <RetroLaunch employeeId={employee.id} records={records} onDone={loadRecords} />
         <div className="card">
-          <div className="card-title">Meus registros</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
+            <div className="card-title" style={{ marginBottom: 0 }}>Meus registros</div>
+            <button
+              className={`btn btn-sm ${onlyIssues ? "btn-primary" : "btn-secondary"}`}
+              onClick={() => setOnlyIssues(v => !v)}
+              disabled={issueRecords.length === 0 && !onlyIssues}
+            >
+              ⚠️ Só pendências{issueRecords.length > 0 ? ` (${issueRecords.length})` : ""}
+            </button>
+          </div>
+          {onlyIssues && (
+            <p style={{ fontSize: 12, color: "var(--muted)", marginTop: -8, marginBottom: 14 }}>
+              Mostrando apenas registros em aberto (sem saída) ou pendentes de aprovação.
+            </p>
+          )}
           <div className="table-wrap">
             <table>
               <thead>
@@ -821,10 +898,10 @@ export function EmployeePortal({ employee, onLogout }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {records.length === 0 ? (
-                  <tr><td colSpan={10} className="empty">Nenhum registro encontrado.</td></tr>
+                {(onlyIssues ? issueRecords : records).length === 0 ? (
+                  <tr><td colSpan={10} className="empty">{onlyIssues ? "Nenhuma pendência encontrada." : "Nenhum registro encontrado."}</td></tr>
                 ) : (
-                  [...records].sort((a, b) => b.date.localeCompare(a.date)).map(r => (
+                  [...(onlyIssues ? issueRecords : records)].sort((a, b) => b.date.localeCompare(a.date)).map(r => (
                     <tr key={r.id}>
                       <td>{fmtDate(r.date)}</td>
                       <td className="mono">{r.entry_time ?? "—"}</td>
@@ -1114,6 +1191,15 @@ export function EmployeePortal({ employee, onLogout }: Props) {
 
       {lightbox && (
         <ImageLightbox url={lightbox.url} filename={lightbox.filename} onClose={() => setLightbox(null)} />
+      )}
+
+      {showPendingAlert && (
+        <PendingRecordsAlert
+          openCount={openRecords.length}
+          pendingCount={pendingRecords.length}
+          onClose={() => setShowPendingAlert(false)}
+          onGoToRecords={() => { setTab("registros"); setOnlyIssues(true); setShowPendingAlert(false); }}
+        />
       )}
     </div>
   );

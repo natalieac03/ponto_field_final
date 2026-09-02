@@ -1,21 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
 import { Modal } from "../components/Modal";
+import { ESCALA_COLOR, FERIAS_COLOR, KIND, MONTHS, WD, fmtDeduct, iso } from "../features/calendar/shared";
+import { AccordionGroup, EmptyGroupState, GroupFilters } from "../features/calendar/GroupedList";
+import { LeaveModal } from "../features/calendar/LeaveModal";
 import { LEAVE_KIND_LABEL } from "../types";
-import type { CalendarDay, CalendarKind, Employee, EmployeeLeave, EmployeeShift, HolidaySuggestion, LeaveKind } from "../types";
-
-const MONTHS = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
-const WD = ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
-
-const KIND: Record<CalendarKind, { color: string; bg: string; icon: string; label: string }> = {
-  feriado:     { color: "#dc2626", bg: "rgba(220,38,38,0.10)",  icon: "🏖", label: "Feriado" },
-  facultativo: { color: "#b45309", bg: "rgba(245,166,35,0.14)", icon: "🕊", label: "Facultativo" },
-  evento:      { color: "#2563eb", bg: "rgba(37,99,235,0.10)",  icon: "📌", label: "Evento" },
-};
-
-const iso = (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-const fmtDeduct = (min: number | null) =>
-  min === null ? "dia inteiro" : `−${Math.floor(min / 60)}h${String(min % 60).padStart(2, "0")}`;
+import type { CalendarDay, CalendarKind, Employee, EmployeeLeave, EmployeeShift, HolidaySuggestion } from "../types";
 
 export function Calendario() {
   const now = new Date();
@@ -25,6 +15,7 @@ export function Calendario() {
   const [editing, setEditing] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<HolidaySuggestion[] | null>(null);
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
   const [leaves, setLeaves] = useState<EmployeeLeave[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -32,12 +23,24 @@ export function Calendario() {
   const [shifts, setShifts] = useState<EmployeeShift[]>([]);
   const [shiftModal, setShiftModal] = useState(false);
 
+  const [shiftEmpFilter, setShiftEmpFilter] = useState<number | "all">("all");
+  const [shiftScope, setShiftScope] = useState<"upcoming" | "all">("upcoming");
+  const [expandedShiftEmp, setExpandedShiftEmp] = useState<Set<number>>(new Set());
+
+  const [leaveEmpFilter, setLeaveEmpFilter] = useState<number | "all">("all");
+  const [leaveScope, setLeaveScope] = useState<"upcoming" | "all">("upcoming");
+  const [expandedLeaveEmp, setExpandedLeaveEmp] = useState<Set<number>>(new Set());
+
   const load = () => api.getCalendar().then(setDays).catch(console.error);
   const loadLeaves = () => api.getLeaves().then(setLeaves).catch(console.error);
   const loadShifts = () => api.getShifts().then(setShifts).catch(console.error);
   useEffect(() => {
-    load(); loadLeaves(); loadShifts();
-    api.getEmployees().then(es => setEmployees(es.filter(e => e.active))).catch(console.error);
+    Promise.all([
+      api.getCalendar().then(setDays),
+      api.getLeaves().then(setLeaves),
+      api.getShifts().then(setShifts),
+      api.getEmployees().then(es => setEmployees(es.filter(e => e.active))),
+    ]).catch(console.error).finally(() => setLoading(false));
   }, []);
 
   const empName = (id: number) => employees.find(e => e.id === id)?.name ?? `#${id}`;
@@ -64,6 +67,31 @@ export function Calendario() {
   }, [leaves, employees]);
 
   const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(null), 4000); };
+
+  const todayISO = new Date().toISOString().slice(0, 10);
+
+  const toggleInSet = (setFn: (updater: (prev: Set<number>) => Set<number>) => void, id: number) =>
+    setFn(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  const shiftGroups = useMemo(() => {
+    const filtered = shifts.filter(sh =>
+      (shiftScope === "all" || sh.date >= todayISO) &&
+      (shiftEmpFilter === "all" || sh.employee_id === shiftEmpFilter));
+    const byEmp = new Map<number, EmployeeShift[]>();
+    for (const sh of filtered) (byEmp.get(sh.employee_id) ?? byEmp.set(sh.employee_id, []).get(sh.employee_id)!).push(sh);
+    for (const list of byEmp.values()) list.sort((a, b) => a.date.localeCompare(b.date));
+    return [...byEmp.entries()].sort((a, b) => empName(a[0]).localeCompare(empName(b[0])));
+  }, [shifts, shiftScope, shiftEmpFilter, employees]);
+
+  const leaveGroups = useMemo(() => {
+    const filtered = leaves.filter(lv =>
+      (leaveScope === "all" || lv.end_date >= todayISO) &&
+      (leaveEmpFilter === "all" || lv.employee_id === leaveEmpFilter));
+    const byEmp = new Map<number, EmployeeLeave[]>();
+    for (const lv of filtered) (byEmp.get(lv.employee_id) ?? byEmp.set(lv.employee_id, []).get(lv.employee_id)!).push(lv);
+    for (const list of byEmp.values()) list.sort((a, b) => a.start_date.localeCompare(b.start_date));
+    return [...byEmp.entries()].sort((a, b) => empName(a[0]).localeCompare(empName(b[0])));
+  }, [leaves, leaveScope, leaveEmpFilter, employees]);
 
   const byDate = useMemo(() => Object.fromEntries(days.map(d => [d.date, d])), [days]);
 
@@ -132,17 +160,20 @@ export function Calendario() {
           ))}
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 6 }}>
-          {cells.map((d, i) => {
+          {loading ? cells.map((d, i) => d === null
+            ? <div key={`e${i}`} />
+            : <div key={`sk${i}`} className="skeleton cal-day-cell" />
+          ) : cells.map((d, i) => {
             if (d === null) return <div key={`e${i}`} />;
             const dt = iso(year, month, d);
             const mk = byDate[dt];
             const st = mk ? KIND[mk.kind] : null;
             const weekend = i % 7 >= 5;
             return (
-              <button key={dt} onClick={() => setEditing(dt)}
+              <button key={dt} onClick={() => setEditing(dt)} className="cal-day-cell"
                 title={mk ? `${mk.label} (${fmtDeduct(mk.deduct_minutes)})` : "Marcar este dia"}
                 style={{
-                  minHeight: 60, padding: 6, borderRadius: 10, cursor: "pointer", textAlign: "left",
+                  padding: 6, borderRadius: "var(--radius)", cursor: "pointer", textAlign: "left",
                   fontFamily: "var(--font)",
                   background: st ? st.bg : weekend ? "var(--surface2)" : "var(--surface)",
                   border: `1px solid ${st ? st.color + "55" : "var(--border2)"}`,
@@ -153,19 +184,19 @@ export function Calendario() {
                 </span>
                 {mk && (
                   <span style={{ fontSize: 9.5, lineHeight: 1.25, color: st!.color, fontWeight: 600, overflow: "hidden" }}>
-                    {st!.icon} {mk.label}{mk.deduct_minutes !== null && ` (${fmtDeduct(mk.deduct_minutes)})`}
+                    {st!.icon} <span className="cal-tag-text">{mk.label}{mk.deduct_minutes !== null && ` (${fmtDeduct(mk.deduct_minutes)})`}</span>
                   </span>
                 )}
                 {shiftByDate[dt]?.length > 0 && (
                   <span title={`Escala: ${shiftByDate[dt].join(", ")}`}
-                    style={{ fontSize: 9, lineHeight: 1.2, color: "#7c3aed", fontWeight: 700, overflow: "hidden" }}>
-                    📋 {shiftByDate[dt].length === 1 ? shiftByDate[dt][0].split(" ")[0] : `${shiftByDate[dt].length} escalados`}
+                    style={{ fontSize: 9, lineHeight: 1.2, color: "var(--escala)", fontWeight: 700, overflow: "hidden" }}>
+                    📋 <span className="cal-tag-text">{shiftByDate[dt].length === 1 ? shiftByDate[dt][0].split(" ")[0] : `${shiftByDate[dt].length} escalados`}</span>
                   </span>
                 )}
                 {leaveByDate[dt]?.length > 0 && (
                   <span title={`Férias: ${leaveByDate[dt].join(", ")}`}
-                    style={{ fontSize: 9, lineHeight: 1.2, color: "#0d9488", fontWeight: 700, overflow: "hidden" }}>
-                    🏖 {leaveByDate[dt].length === 1 ? leaveByDate[dt][0].split(" ")[0] : `${leaveByDate[dt].length} de férias`}
+                    style={{ fontSize: 9, lineHeight: 1.2, color: "var(--ferias)", fontWeight: 700, overflow: "hidden" }}>
+                    🏖 <span className="cal-tag-text">{leaveByDate[dt].length === 1 ? leaveByDate[dt][0].split(" ")[0] : `${leaveByDate[dt].length} de férias`}</span>
                   </span>
                 )}
               </button>
@@ -204,35 +235,45 @@ export function Calendario() {
         <div className="card">
           <div className="card-title">Escalas marcadas</div>
           <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 12 }}>
-            Dia escalado conta como jornada normal (4h no sábado). Quem trabalhar em dia
-            <strong> não escalado</strong> recebe as horas como <strong>extra 100%</strong>.
+            Dia escalado conta como jornada normal (4h no sábado). Sábado
+            <strong> não escalado</strong> vira <strong>extra 50%</strong> — a dobra (100%)
+            vale só para domingo e feriado não facultativo (Súmula 146/TST).
           </p>
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>Data</th><th>Dia</th><th>Colaborador</th><th>Obs.</th><th></th></tr></thead>
-              <tbody>
-                {shifts.map(sh => {
-                  const d = new Date(sh.date + "T12:00");
-                  return (
-                    <tr key={sh.id}>
-                      <td className="mono">{sh.date.split("-").reverse().join("/")}</td>
-                      <td style={{ fontSize: 12 }}>{["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"][d.getDay()]}</td>
-                      <td style={{ fontWeight: 500 }}>{empName(sh.employee_id)}</td>
-                      <td style={{ fontSize: 12, color: "var(--muted)" }}>{sh.note ?? "—"}</td>
-                      <td>
-                        <button className="btn btn-danger btn-sm"
-                          onClick={async () => {
-                            if (!confirm(`Remover a escala de ${empName(sh.employee_id)} em ${sh.date.split("-").reverse().join("/")}?`)) return;
-                            try { await api.deleteShift(sh.id); loadShifts(); flash("Escala removida."); }
-                            catch (e) { flash(e instanceof Error ? e.message : "Erro."); }
-                          }}>Remover</button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <GroupFilters empFilter={shiftEmpFilter} setEmpFilter={setShiftEmpFilter}
+            scope={shiftScope} setScope={setShiftScope} employees={employees} />
+          {shiftGroups.length === 0 ? (
+            <EmptyGroupState message="Nenhuma escala neste filtro." filtered={shiftEmpFilter !== "all" || shiftScope !== "upcoming"}
+              onClear={() => { setShiftEmpFilter("all"); setShiftScope("upcoming"); }} />
+          ) : shiftGroups.map(([empId, list]) => (
+            <AccordionGroup key={empId} title={empName(empId)} icon="📋" accent={ESCALA_COLOR} count={list.length} countLabel="escala(s)"
+              expanded={expandedShiftEmp.has(empId)} onToggle={() => toggleInSet(setExpandedShiftEmp, empId)}>
+              <div className="table-wrap">
+                <table>
+                  <thead><tr><th>Data</th><th>Dia</th><th>Obs.</th><th></th></tr></thead>
+                  <tbody>
+                    {list.map(sh => {
+                      const d = new Date(sh.date + "T12:00");
+                      return (
+                        <tr key={sh.id}>
+                          <td className="mono">{sh.date.split("-").reverse().join("/")}</td>
+                          <td style={{ fontSize: 12 }}>{["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"][d.getDay()]}</td>
+                          <td style={{ fontSize: 12, color: "var(--muted)" }}>{sh.note ?? "—"}</td>
+                          <td>
+                            <button className="btn btn-danger btn-sm"
+                              onClick={async () => {
+                                if (!confirm(`Remover a escala de ${empName(sh.employee_id)} em ${sh.date.split("-").reverse().join("/")}?`)) return;
+                                try { await api.deleteShift(sh.id); loadShifts(); flash("Escala removida."); }
+                                catch (e) { flash(e instanceof Error ? e.message : "Erro."); }
+                              }}>Remover</button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </AccordionGroup>
+          ))}
         </div>
       )}
 
@@ -242,36 +283,45 @@ export function Calendario() {
           <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 12 }}>
             Nos dias marcados o colaborador não tem jornada esperada — não gera débito no banco de horas.
           </p>
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>Colaborador</th><th>Início</th><th>Fim</th><th>Dias</th><th>Tipo</th><th>Obs.</th><th></th></tr></thead>
-              <tbody>
-                {leaves.map(lv => {
-                  const dias = Math.round(
-                    (new Date(lv.end_date + "T12:00").getTime() - new Date(lv.start_date + "T12:00").getTime())
-                    / 86400000) + 1;
-                  return (
-                    <tr key={lv.id}>
-                      <td style={{ fontWeight: 500 }}>{empName(lv.employee_id)}</td>
-                      <td className="mono">{lv.start_date.split("-").reverse().join("/")}</td>
-                      <td className="mono">{lv.end_date.split("-").reverse().join("/")}</td>
-                      <td className="mono">{dias}</td>
-                      <td style={{ fontSize: 12 }}>{LEAVE_KIND_LABEL[lv.kind] ?? lv.kind}</td>
-                      <td style={{ fontSize: 12, color: "var(--muted)" }}>{lv.note ?? "—"}</td>
-                      <td>
-                        <button className="btn btn-danger btn-sm"
-                          onClick={async () => {
-                            if (!confirm(`Remover as férias de ${empName(lv.employee_id)}?`)) return;
-                            try { await api.deleteLeave(lv.id); loadLeaves(); flash("Período removido."); }
-                            catch (e) { flash(e instanceof Error ? e.message : "Erro."); }
-                          }}>Remover</button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <GroupFilters empFilter={leaveEmpFilter} setEmpFilter={setLeaveEmpFilter}
+            scope={leaveScope} setScope={setLeaveScope} employees={employees} />
+          {leaveGroups.length === 0 ? (
+            <EmptyGroupState message="Nenhum período neste filtro." filtered={leaveEmpFilter !== "all" || leaveScope !== "upcoming"}
+              onClear={() => { setLeaveEmpFilter("all"); setLeaveScope("upcoming"); }} />
+          ) : leaveGroups.map(([empId, list]) => (
+            <AccordionGroup key={empId} title={empName(empId)} icon="🏖" accent={FERIAS_COLOR} count={list.length} countLabel="período(s)"
+              expanded={expandedLeaveEmp.has(empId)} onToggle={() => toggleInSet(setExpandedLeaveEmp, empId)}>
+              <div className="table-wrap">
+                <table>
+                  <thead><tr><th>Início</th><th>Fim</th><th>Dias</th><th>Tipo</th><th>Obs.</th><th></th></tr></thead>
+                  <tbody>
+                    {list.map(lv => {
+                      const dias = Math.round(
+                        (new Date(lv.end_date + "T12:00").getTime() - new Date(lv.start_date + "T12:00").getTime())
+                        / 86400000) + 1;
+                      return (
+                        <tr key={lv.id}>
+                          <td className="mono">{lv.start_date.split("-").reverse().join("/")}</td>
+                          <td className="mono">{lv.end_date.split("-").reverse().join("/")}</td>
+                          <td className="mono">{dias}</td>
+                          <td style={{ fontSize: 12 }}>{LEAVE_KIND_LABEL[lv.kind] ?? lv.kind}</td>
+                          <td style={{ fontSize: 12, color: "var(--muted)" }}>{lv.note ?? "—"}</td>
+                          <td>
+                            <button className="btn btn-danger btn-sm"
+                              onClick={async () => {
+                                if (!confirm(`Remover as férias de ${empName(lv.employee_id)}?`)) return;
+                                try { await api.deleteLeave(lv.id); loadLeaves(); flash("Período removido."); }
+                                catch (e) { flash(e instanceof Error ? e.message : "Erro."); }
+                              }}>Remover</button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </AccordionGroup>
+          ))}
         </div>
       )}
 
@@ -291,105 +341,6 @@ export function Calendario() {
           onSaved={(m) => { loadShifts(); flash(m); }} />
       )}
     </div>
-  );
-}
-
-/* ─── Modal: marcar férias / licença ─── */
-function LeaveModal({ employees, onClose, onSaved }: {
-  employees: Employee[]; onClose: () => void; onSaved: (msg: string) => void;
-}) {
-  const today = new Date().toISOString().slice(0, 10);
-  const [employeeId, setEmployeeId] = useState<number | "">("");
-  const [start, setStart] = useState(today);
-  const [end, setEnd] = useState(today);
-  const [kind, setKind] = useState<LeaveKind>("ferias");
-  const [note, setNote] = useState("");
-  const [err, setErr] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  const dias = (() => {
-    const a = new Date(start + "T12:00").getTime();
-    const b = new Date(end + "T12:00").getTime();
-    if (isNaN(a) || isNaN(b) || b < a) return 0;
-    return Math.round((b - a) / 86400000) + 1;
-  })();
-
-  const save = async () => {
-    setErr("");
-    if (employeeId === "") { setErr("Selecione o colaborador."); return; }
-    if (dias <= 0) { setErr("A data final não pode ser antes da inicial."); return; }
-    setSaving(true);
-    try {
-      await api.addLeave({ employee_id: Number(employeeId), start_date: start, end_date: end, kind,
-        ...(note.trim() ? { note: note.trim() } : {}) });
-      const nome = employees.find(e => e.id === Number(employeeId))?.name ?? "Colaborador";
-      onSaved(`${dias} dia(s) de ${LEAVE_KIND_LABEL[kind].replace(/^\S+\s/, "").toLowerCase()} para ${nome}.`);
-      onClose();
-    } catch (e) { setErr(e instanceof Error ? e.message : "Erro."); }
-    finally { setSaving(false); }
-  };
-
-  return (
-    <Modal title="🏖 Marcar férias / licença" onClose={onClose} maxWidth={440}>
-      <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 16 }}>
-        Nesses dias o colaborador não tem jornada esperada — nada é descontado do banco de horas.
-      </div>
-
-      <div className="form-group" style={{ marginBottom: 12 }}>
-        <label>Colaborador *</label>
-        <select value={employeeId} onChange={e => { setEmployeeId(e.target.value === "" ? "" : Number(e.target.value)); setErr(""); }}>
-          <option value="">— selecione —</option>
-          {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-        </select>
-      </div>
-
-      <div className="form-grid" style={{ marginBottom: 12 }}>
-        <div className="form-group">
-          <label>De</label>
-          <input type="date" value={start} onChange={e => { setStart(e.target.value); setErr(""); }} />
-        </div>
-        <div className="form-group">
-          <label>Até</label>
-          <input type="date" value={end} min={start} onChange={e => { setEnd(e.target.value); setErr(""); }} />
-        </div>
-      </div>
-
-      <div className="form-group" style={{ marginBottom: 12 }}>
-        <label>Tipo</label>
-        <div style={{ display: "flex", gap: 8 }}>
-          {(["ferias", "licenca", "folga"] as LeaveKind[]).map(k => (
-            <button key={k} onClick={() => setKind(k)}
-              style={{ flex: 1, padding: "9px 6px", borderRadius: 10, cursor: "pointer", fontSize: 12,
-                fontWeight: 600, fontFamily: "var(--font)",
-                background: kind === k ? "rgba(13,148,136,0.10)" : "var(--surface2)",
-                color: kind === k ? "#0d9488" : "var(--muted)",
-                border: `1px solid ${kind === k ? "#0d9488" : "var(--border2)"}` }}>
-              {LEAVE_KIND_LABEL[k]}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="form-group" style={{ marginBottom: 14 }}>
-        <label>Observação (opcional)</label>
-        <input type="text" maxLength={120} value={note} onChange={e => setNote(e.target.value)}
-          placeholder="Ex.: Férias anuais 2026" />
-      </div>
-
-      {dias > 0 && (
-        <div style={{ fontSize: 12.5, color: "var(--accent)", marginBottom: 12, fontWeight: 600 }}>
-          ✓ {dias} dia(s) no período
-        </div>
-      )}
-      {err && <div className="alert alert-error" style={{ marginBottom: 12 }}>{err}</div>}
-
-      <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-        <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
-        <button className="btn btn-primary" onClick={save} disabled={saving}>
-          {saving ? "Salvando…" : "Marcar"}
-        </button>
-      </div>
-    </Modal>
   );
 }
 
@@ -439,14 +390,14 @@ function DayModal({ date, existing, shiftNames, leaveNames, onClose, onSaved }: 
             {shiftNames.map(n => (
               <span key={`sh-${n}`} style={{ display: "inline-flex", alignItems: "center", gap: 6,
                 background: "rgba(124,58,237,0.10)", border: "1px solid rgba(124,58,237,0.35)",
-                color: "#7c3aed", borderRadius: 20, padding: "6px 12px", fontSize: 12, fontWeight: 600 }}>
+                color: "#7c3aed", borderRadius: "var(--radius-lg)", padding: "6px 12px", fontSize: 12, fontWeight: 600 }}>
                 📋 {n} — escala
               </span>
             ))}
             {leaveNames.map(n => (
               <span key={`lv-${n}`} style={{ display: "inline-flex", alignItems: "center", gap: 6,
                 background: "rgba(13,148,136,0.10)", border: "1px solid rgba(13,148,136,0.35)",
-                color: "#0d9488", borderRadius: 20, padding: "6px 12px", fontSize: 12, fontWeight: 600 }}>
+                color: "#0d9488", borderRadius: "var(--radius-lg)", padding: "6px 12px", fontSize: 12, fontWeight: 600 }}>
                 🏖 {n} — férias
               </span>
             ))}
@@ -459,7 +410,7 @@ function DayModal({ date, existing, shiftNames, leaveNames, onClose, onSaved }: 
         <div style={{ display: "flex", gap: 8 }}>
           {(Object.keys(KIND) as CalendarKind[]).map(k => (
             <button key={k} onClick={() => setKind(k)}
-              style={{ flex: 1, padding: "9px 8px", borderRadius: 10, cursor: "pointer", fontSize: 12.5, fontWeight: 600, fontFamily: "var(--font)",
+              style={{ flex: 1, padding: "9px 8px", borderRadius: "var(--radius)", cursor: "pointer", fontSize: 12.5, fontWeight: 600, fontFamily: "var(--font)",
                 background: kind === k ? KIND[k].bg : "var(--surface2)",
                 color: kind === k ? KIND[k].color : "var(--muted)",
                 border: `1px solid ${kind === k ? KIND[k].color : "var(--border2)"}` }}>
@@ -481,12 +432,12 @@ function DayModal({ date, existing, shiftNames, leaveNames, onClose, onSaved }: 
         <label>Abatimento</label>
         <div style={{ display: "flex", gap: 8, marginBottom: partial ? 8 : 0 }}>
           <button onClick={() => setPartial(false)}
-            style={{ flex: 1, padding: 9, borderRadius: 10, cursor: "pointer", fontSize: 12.5, fontWeight: 600, fontFamily: "var(--font)",
+            style={{ flex: 1, padding: 9, borderRadius: "var(--radius)", cursor: "pointer", fontSize: 12.5, fontWeight: 600, fontFamily: "var(--font)",
               background: !partial ? "rgba(37,99,235,0.10)" : "var(--surface2)",
               color: !partial ? "#2563eb" : "var(--muted)",
               border: `1px solid ${!partial ? "#2563eb" : "var(--border2)"}` }}>Dia inteiro</button>
           <button onClick={() => setPartial(true)}
-            style={{ flex: 1, padding: 9, borderRadius: 10, cursor: "pointer", fontSize: 12.5, fontWeight: 600, fontFamily: "var(--font)",
+            style={{ flex: 1, padding: 9, borderRadius: "var(--radius)", cursor: "pointer", fontSize: 12.5, fontWeight: 600, fontFamily: "var(--font)",
               background: partial ? "rgba(37,99,235,0.10)" : "var(--surface2)",
               color: partial ? "#2563eb" : "var(--muted)",
               border: `1px solid ${partial ? "#2563eb" : "var(--border2)"}` }}>Parcial</button>
@@ -565,7 +516,8 @@ function ShiftModal({ employees, onClose, onSaved }: {
     <Modal title="📋 Marcar escala" onClose={onClose} maxWidth={440}>
       <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 16, lineHeight: 1.5 }}>
         Dia escalado conta como <strong>jornada normal</strong> (sábado = 4h, semana passa a 8h/dia).
-        Sem escala, o sábado é descanso e o trabalho vira <strong>extra 100%</strong>.
+        Sem escala, o sábado trabalhado vira <strong>extra 50%</strong> (a dobra de 100% é exclusiva
+        de domingo e feriado não facultativo).
       </div>
 
       <div className="form-group" style={{ marginBottom: 12 }}>
@@ -579,7 +531,7 @@ function ShiftModal({ employees, onClose, onSaved }: {
       <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
         {(["dia", "periodo"] as const).map(m => (
           <button key={m} onClick={() => { setMode(m); setErr(""); }}
-            style={{ flex: 1, padding: "9px 8px", borderRadius: 10, cursor: "pointer", fontSize: 12.5,
+            style={{ flex: 1, padding: "9px 8px", borderRadius: "var(--radius)", cursor: "pointer", fontSize: 12.5,
               fontWeight: 600, fontFamily: "var(--font)",
               background: mode === m ? "rgba(124,58,237,0.10)" : "var(--surface2)",
               color: mode === m ? "#7c3aed" : "var(--muted)",

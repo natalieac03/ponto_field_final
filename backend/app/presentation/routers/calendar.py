@@ -5,7 +5,7 @@ from sqlmodel import Session
 
 from app.application import calendar as cal_uc
 from app.infrastructure.database import get_session
-from app.presentation.deps import require_admin
+from app.presentation.deps import require_admin, require_auth
 
 router = APIRouter(prefix="/calendar", tags=["calendar"])
 
@@ -76,7 +76,7 @@ class ShiftOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
-@router.get("/shifts", response_model=list[ShiftOut], dependencies=[Depends(require_admin)])
+@router.get("/shifts", response_model=list[ShiftOut], dependencies=[Depends(require_auth)])
 def list_shifts(session: Session = Depends(get_session)):
     """Escalas marcadas (dias em que o colaborador está escalado)."""
     return cal_uc.get_shifts(session)
@@ -92,7 +92,7 @@ def delete_shift(shift_id: int, session: Session = Depends(get_session)):
     cal_uc.delete_shift(session, shift_id)
 
 
-@router.get("/leaves", response_model=list[LeaveOut], dependencies=[Depends(require_admin)])
+@router.get("/leaves", response_model=list[LeaveOut], dependencies=[Depends(require_auth)])
 def list_leaves(session: Session = Depends(get_session)):
     """Férias/licenças programadas de todos os colaboradores."""
     return cal_uc.get_leaves(session)

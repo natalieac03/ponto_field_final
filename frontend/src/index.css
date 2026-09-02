@@ -22,6 +22,14 @@
   --success: #16a34a;
   --info: #0ea5e9;
 
+  /* Cor de STATUS (bom/ruim/neutro: badge-pos, stat-value.warn, tag-status...)
+     é sempre danger/success/info/accent acima. Cor de CATEGORIA de evento do
+     calendário (o que é, não se é bom ou ruim) usa uma paleta separada, fixa
+     por tipo, igual nos dois temas: --escala (📋 escala) e --ferias (🏖 férias
+     e licenças). Feriado/facultativo/evento usam KIND em shared.ts. */
+  --escala: #7c3aed;
+  --ferias: #0d9488;
+
   --font: "Sora", sans-serif;
   --mono: "JetBrains Mono", monospace;
 
@@ -176,6 +184,19 @@ header {
   text-transform: uppercase;
   letter-spacing: 0.9px;
   margin-bottom: 16px;
+}
+
+/* Skeleton de carregamento (fetch inicial): substitui o flash em branco. */
+.skeleton {
+  border-radius: var(--radius);
+  background: linear-gradient(100deg, var(--surface2) 35%, var(--border) 50%, var(--surface2) 65%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.3s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
 }
 
 .stats-grid {
@@ -1517,10 +1538,31 @@ hr {
   .theme-seg-compact { width: 26px; height: 26px; font-size: 12.5px; }
 }
 
-/* ===== Assinaturas (somente impressão) ===== */
+/* ===== Grid mensal do calendário: texto completo no dia; no mobile, só o ícone ===== */
+.cal-day-cell { min-height: 60px; }
+
+@media (max-width: 640px) {
+  .cal-day-cell { min-height: 40px; }
+  .cal-tag-text { display: none; }
+}
+
+/* ===== Cabeçalho de marca e assinaturas (somente impressão) ===== */
+.print-header { display: none; }
 .print-signatures { display: none; }
 
 @media print {
+  .print-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding-bottom: 10px;
+    margin-bottom: 16px;
+    border-bottom: 2px solid #00AEEF;
+  }
+  .print-header img { height: 34px; }
+  .print-header .print-header-title { font-size: 15px; font-weight: 700; color: #0D1B2A; }
+  .print-header .print-header-subtitle { font-size: 11px; color: #5A6B7A; margin-top: 1px; }
+
   .print-signatures {
     display: flex;
     justify-content: space-between;
@@ -1532,5 +1574,7 @@ hr {
   .sig-block { flex: 1; text-align: center; }
   .sig-line { border-bottom: 1.5px solid #333; height: 38px; margin-bottom: 6px; }
   .sig-label { font-size: 11px; font-weight: 700; letter-spacing: .6px; color: #111; }
-  .tabs, .sec-header .row, .icon-btn, .avatar-btn, .theme-toggle-compact { display: none !important; }
+  .tabs, .sec-header .row, .icon-btn, .avatar-btn, .theme-toggle-compact, .no-print { display: none !important; }
+  .card { page-break-inside: avoid; border: 1px solid #D9E2EC; box-shadow: none; }
+  table tr { page-break-inside: avoid; }
 }

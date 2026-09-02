@@ -27,7 +27,8 @@ def sync_engine(session: Session) -> None:
     full = {d.date for d in days if d.deduct_minutes is None}
     partial = {d.date: d.deduct_minutes for d in days if d.deduct_minutes is not None}
     labels = {d.date: d.label for d in days}
-    accounting.set_calendar(full, partial, labels)
+    kinds = {d.date: d.kind for d in days}
+    accounting.set_calendar(full, partial, labels, kinds)
 
 
 def sync_leaves(session: Session) -> None:

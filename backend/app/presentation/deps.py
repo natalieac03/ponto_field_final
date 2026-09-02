@@ -53,6 +53,11 @@ def require_admin(identity: dict = Depends(get_identity)) -> dict:
     return identity
 
 
+def require_auth(identity: dict = Depends(get_identity)) -> dict:
+    """Qualquer usuário autenticado (admin ou colaborador) — para leitura compartilhada."""
+    return identity
+
+
 def auth_rate_limit(request: Request) -> None:
     """Anti brute-force: limita tentativas de login por IP de origem."""
     client = request.client.host if request.client else "unknown"

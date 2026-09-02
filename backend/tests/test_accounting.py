@@ -115,3 +115,46 @@ def test_semana_completa_soma_sempre_44h_mesmo_dividida_entre_meses():
     total2 = sum(accounting.employee_reference(1, d, None, 480, 240, None) for d in dias_agosto2)
     total2 += sum(accounting.employee_reference(1, d, None, 480, 240, None) for d in dias_setembro)
     assert total2 == 2640
+
+
+# ── Regra CLT Art. 59 + Súmula 146/TST: a dobra (100%) é exclusiva de domingo
+# e feriado NÃO facultativo. Sábado sem escala, facultativo e evento geram
+# extra 50% (não há DSR a dobrar).
+def test_sabado_sem_escala_gera_extra50_nao_extra100():
+    # 2026-08-22 é sábado, sem escala marcada.
+    res = accounting.compute_day(
+        "2026-08-22", "08:00", None, None, "12:10",  # 4h10 trabalhadas
+        h1=480, h2=240, employee_id=1,
+    )
+    assert res.reference == 0 and res.rest_day is True
+    assert res.extra50 == 250 and res.extra100 == 0
+
+
+def test_domingo_gera_extra100():
+    # 2026-08-23 é domingo.
+    res = accounting.compute_day(
+        "2026-08-23", "08:00", None, None, "12:00",  # 4h trabalhadas
+        h1=480, h2=240, employee_id=1,
+    )
+    assert res.reference == 0 and res.rest_day is True
+    assert res.extra50 == 0 and res.extra100 == 240
+
+
+def test_feriado_nao_facultativo_gera_extra100():
+    accounting.set_calendar({"2026-08-18"}, {}, kinds={"2026-08-18": "feriado"})  # terça
+    res = accounting.compute_day(
+        "2026-08-18", "08:00", None, None, "12:00",
+        h1=480, h2=240, employee_id=1,
+    )
+    assert res.reference == 0
+    assert res.extra100 == 240 and res.extra50 == 0
+
+
+def test_ponto_facultativo_gera_extra50_nao_extra100():
+    accounting.set_calendar({"2026-08-18"}, {}, kinds={"2026-08-18": "facultativo"})  # terça
+    res = accounting.compute_day(
+        "2026-08-18", "08:00", None, None, "12:00",
+        h1=480, h2=240, employee_id=1,
+    )
+    assert res.reference == 0
+    assert res.extra50 == 240 and res.extra100 == 0

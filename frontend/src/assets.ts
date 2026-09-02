@@ -15,6 +15,9 @@ const breakOutDarkArt  = new URL("../imagens/breakout.png", import.meta.url).hre
 const clockOutDarkArt  = new URL("../imagens/clockout.png", import.meta.url).href;
 const landingDarkArt   = new URL("../imagens/desenho.png", import.meta.url).href;
 
+// Papel timbrado (impressão/PDF) — fundo sempre claro, não troca com o tema.
+export const fieldTechLogoUrl = new URL("../imagens/FieldTech_Logo.png", import.meta.url).href;
+
 // ── "_claro" (arte clara → tema escuro)
 const logoLightArt     = new URL("../imagens/logo_claro.png", import.meta.url).href;
 const employeeLightArt = new URL("../imagens/ICON_claro.png", import.meta.url).href;

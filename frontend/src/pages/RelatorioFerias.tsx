@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../api/client";
+import { fieldTechLogoUrl } from "../assets";
+import { LeaveModal } from "../features/calendar/LeaveModal";
 import { LEAVE_KIND_LABEL } from "../types";
-import type { VacationReport, VacationReportItem } from "../types";
+import type { Employee, VacationReport, VacationReportItem } from "../types";
 
 const hm = (m: number | null | undefined) => {
   if (m == null) return "—";
@@ -23,6 +25,13 @@ export function RelatorioFerias() {
   const [busy, setBusy] = useState(false);
   const [expanded, setExpanded] = useState<number | null>(null);
   const [err, setErr] = useState("");
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [leaveModal, setLeaveModal] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.getEmployees().then(es => setEmployees(es.filter(e => e.active))).catch(console.error);
+  }, []);
 
   const buscar = async () => {
     setErr(""); setLoading(true);
@@ -30,6 +39,8 @@ export function RelatorioFerias() {
     catch (e) { setErr(e instanceof Error ? e.message : "Erro ao buscar."); }
     finally { setLoading(false); }
   };
+
+  const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(null), 4000); };
 
   const baixarCsv = async () => {
     setBusy(true);
@@ -40,16 +51,31 @@ export function RelatorioFerias() {
 
   return (
     <div>
-      <div className="sec-header">
+      <div className="print-header">
+        <img src={fieldTechLogoUrl} alt="Field Technology" />
+        <div>
+          <div className="print-header-title">Relatório de Férias e Afastamentos</div>
+          <div className="print-header-subtitle">
+            {br(start)} a {br(end)} · Gerado em {new Date().toLocaleDateString("pt-BR")}
+          </div>
+        </div>
+      </div>
+
+      <div className="sec-header no-print">
         <div>
           <div style={{ fontSize: 15, fontWeight: 700 }}>🏖 Relatório de férias e afastamentos</div>
           <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
             Quem entra de férias no período, com o espelho de ponto dos dias anteriores
           </div>
         </div>
+        <button className="btn btn-primary btn-sm" onClick={() => setLeaveModal(true)}>
+          🏖 Marcar férias
+        </button>
       </div>
 
-      <div className="card">
+      {msg && <div className="alert alert-success no-print" style={{ marginBottom: 12 }}>{msg}</div>}
+
+      <div className="card no-print">
         <div className="card-title">Período de início das férias</div>
         <div className="form-grid">
           <div className="form-group">
@@ -101,6 +127,7 @@ export function RelatorioFerias() {
               <div className="card-title">
                 {report.items.length} colaborador(es) — {br(report.start)} a {br(report.end)}
               </div>
+              <ResumoSaldo items={report.items} />
               <div className="table-wrap">
                 <table>
                   <thead>
@@ -114,7 +141,7 @@ export function RelatorioFerias() {
                       <th>Extra 50%</th>
                       <th>Extra 100%</th>
                       <th>Saldo</th>
-                      <th></th>
+                      <th className="no-print"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -133,7 +160,7 @@ export function RelatorioFerias() {
                         <td className="mono" style={{ color: it.balance >= 0 ? "var(--pos)" : "var(--neg)", fontWeight: 600 }}>
                           {hm(it.balance)}
                         </td>
-                        <td>
+                        <td className="no-print">
                           <button className="btn btn-secondary btn-sm"
                             onClick={() => setExpanded(expanded === it.employee_id ? null : it.employee_id)}>
                             {expanded === it.employee_id ? "Ocultar" : "Espelho"}
@@ -155,6 +182,33 @@ export function RelatorioFerias() {
           </>
         )
       )}
+
+      {leaveModal && (
+        <LeaveModal employees={employees} onClose={() => setLeaveModal(false)}
+          onSaved={(m) => { flash(m); if (report) buscar(); }} />
+      )}
+    </div>
+  );
+}
+
+/** Resumo visual (KPIs) do lote de férias/afastamentos buscado, exibido acima da tabela. */
+function ResumoSaldo({ items }: { items: VacationReportItem[] }) {
+  const t = items.reduce((a, it) => ({
+    dias: a.dias + it.leave_days,
+    trabalhado: a.trabalhado + it.worked_minutes,
+    extra100: a.extra100 + it.extra100_minutes,
+    saldo: a.saldo + it.balance,
+  }), { dias: 0, trabalhado: 0, extra100: 0, saldo: 0 });
+  return (
+    <div className="stats-grid" style={{ marginBottom: 14 }}>
+      <div className="stat"><div className="stat-label">Colaboradores</div><div className="stat-value">{items.length}</div></div>
+      <div className="stat"><div className="stat-label">Dias de afastamento</div><div className="stat-value">{t.dias}</div></div>
+      <div className="stat"><div className="stat-label">Trabalhado no espelho</div><div className="stat-value">{hm(t.trabalhado)}</div></div>
+      <div className="stat"><div className="stat-label">Extra 100% no espelho</div><div className="stat-value">{hm(t.extra100)}</div></div>
+      <div className="stat">
+        <div className="stat-label">Saldo total</div>
+        <div className={`stat-value ${t.saldo >= 0 ? "pos" : "neg"}`}>{hm(t.saldo)}</div>
+      </div>
     </div>
   );
 }
