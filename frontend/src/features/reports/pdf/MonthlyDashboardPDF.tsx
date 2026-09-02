@@ -150,6 +150,14 @@ function EmployeePage({ report, s, dayCtx }: { report: MonthlyReport; s: Monthly
 
   const dayInfo = (rec: MonthlyRecord) => (dayCtx ? lookupDay(dayCtx, rec.employee_id, rec.date) : undefined);
 
+  const reviewNotes = Array.from(new Set(
+    recs.filter((r) => r.reviewed_by).map((r) => {
+      const [datePart, timePart] = (r.reviewed_at ?? "").split("T");
+      const when = datePart ? `${brDate(datePart)}${timePart ? ` ${timePart.slice(0, 5)}` : ""}` : "—";
+      return `${r.reviewed_by} em ${when}`;
+    }),
+  ));
+
   const bgFor = (rec: MonthlyRecord, idx: number): string | undefined => {
     const day = dayInfo(rec);
     if (day) return CATEGORY_BG[day.category];
@@ -196,6 +204,11 @@ function EmployeePage({ report, s, dayCtx }: { report: MonthlyReport; s: Monthly
         Faltas: {s.faltas} · Atestados: {s.atestados} · Folgas: {s.folgas} · Extra 100%: {hm(s.extra100_minutes)} · Adicional noturno: {hm(s.night_bonus_minutes)}.
       </Text>
       {dayCtx && <CategoryLegend />}
+      {reviewNotes.length > 0 && (
+        <Text style={styles.legend}>
+          Decisões registradas eletronicamente no sistema: {reviewNotes.join(" · ")}.
+        </Text>
+      )}
 
       <SignatureBlock />
 
