@@ -14,6 +14,19 @@ export function BarChart({ data, width, height }: { data: Bar[]; width: number; 
   const minV = Math.min(0, ...data.map((d) => d.value));
   const range = maxV - minV || 60;
   const zeroY = plotTop + (maxV / range) * plotH;
+  const plotHPos = zeroY - plotTop;
+  const plotHNeg = plotBottom - zeroY;
+
+  // Escala em raiz quadrada (por lado do zero): quando uma única semana
+  // discrepante domina a amplitude linear, as demais barras viram traços
+  // quase invisíveis. A raiz suaviza essa diferença sem deixar de refletir
+  // que valores maiores ainda são visivelmente maiores.
+  const barHeight = (v: number) => {
+    const side = v >= 0 ? maxV : Math.abs(minV);
+    const sidePlot = v >= 0 ? plotHPos : plotHNeg;
+    if (side <= 0) return 0;
+    return Math.sqrt(Math.abs(v) / side) * sidePlot;
+  };
 
   const n = Math.max(data.length, 1);
   const slot = width / n;
@@ -24,7 +37,7 @@ export function BarChart({ data, width, height }: { data: Bar[]; width: number; 
       <Line x1={0} y1={zeroY} x2={width} y2={zeroY} stroke={C.border} strokeWidth={1} />
       {data.map((d, i) => {
         const cx = i * slot + slot / 2;
-        const h = (Math.abs(d.value) / range) * plotH;
+        const h = barHeight(d.value);
         const y = d.value >= 0 ? zeroY - h : zeroY;
         const color = d.value >= 0 ? C.blue : C.neg;
 
