@@ -8,6 +8,9 @@ export const CATEGORY_BG: Record<DayCategory, string> = {
 export const CATEGORY_COLOR: Record<DayCategory, string> = {
   escala: C.escala, leave: C.leave, feriado: C.feriado, facultativo: C.facultativo, evento: C.evento,
 };
+export const CATEGORY_ABBR: Record<DayCategory, string> = {
+  escala: "EX", leave: "LC", feriado: "FR", facultativo: "FC", evento: "EV",
+};
 export const CATEGORY_LEGEND: { category: DayCategory; label: string }[] = [
   { category: "escala", label: "Escala extra" },
   { category: "leave", label: "Férias / licença / folga" },

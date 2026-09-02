@@ -1,7 +1,7 @@
 import { Document, Page, Text, View } from "@react-pdf/renderer";
 import type { MonthlyRecord, MonthlyReport, MonthlySummary } from "../../../types";
 import { BarChart, Donut, type Bar } from "./charts";
-import { CATEGORY_BG, CategoryLegend } from "./categoryStyle";
+import { CATEGORY_ABBR, CATEGORY_BG } from "./categoryStyle";
 import { type DayCtx, lookupDay } from "./dayContext";
 import { Brand, type Col, Footer, Kpi, Row, SignatureBlock, TableHead } from "./PdfLayout";
 import {
@@ -190,7 +190,7 @@ function EmployeePage({ report, s, dayCtx }: { report: MonthlyReport; s: Monthly
             brDate(r.date), weekdayAbbr(r.date), r.day_type ?? "—",
             r.entry_time ?? "—", r.break_start ?? "—", r.break_end ?? "—", r.exit_time ?? "—",
             hm(r.worked_minutes), hm(r.standard_minutes), hmSigned(r.overtime_minutes),
-            r.abono_code ?? (dayInfo(r)?.label ?? "—"), STATUS_ABBR[r.status] ?? r.status,
+            r.abono_code ?? (dayInfo(r) ? CATEGORY_ABBR[dayInfo(r)!.category] : "—"), STATUS_ABBR[r.status] ?? r.status,
           ]} />
         ))}
         <Row cols={DETAIL_COLS} bold cells={[
@@ -200,15 +200,13 @@ function EmployeePage({ report, s, dayCtx }: { report: MonthlyReport; s: Monthly
       </View>
 
       <Text style={styles.legend}>
-        Abonos: AB = Abono · AT = Atestado · VG = Viagem · FA = Falta · FE = Folga. Situação: A = Aprovado · P = Pendente · R = Reprovado.
-        Faltas: {s.faltas} · Atestados: {s.atestados} · Folgas: {s.folgas} · Extra 100%: {hm(s.extra100_minutes)} · Adicional noturno: {hm(s.night_bonus_minutes)}.
+        Abono: AB Abono · AT Atestado · VG Viagem · FA Falta · FE Folga · EX Escala extra · LC Férias/licença/folga · FR Feriado · FC Facultativo · EV Evento.
+        Situação: A Aprovado · P Pendente · R Reprovado.
       </Text>
-      {dayCtx && <CategoryLegend />}
-      {reviewNotes.length > 0 && (
-        <Text style={styles.legend}>
-          Decisões registradas eletronicamente no sistema: {reviewNotes.join(" · ")}.
-        </Text>
-      )}
+      <Text style={[styles.legend, { marginTop: 2 }]}>
+        Faltas: {s.faltas} · Atestados: {s.atestados} · Folgas: {s.folgas} · Extra 100%: {hm(s.extra100_minutes)} · Adicional noturno: {hm(s.night_bonus_minutes)}
+        {reviewNotes.length > 0 ? ` · Revisado eletronicamente por ${reviewNotes.join(", ")}` : ""}.
+      </Text>
 
       <SignatureBlock />
 
