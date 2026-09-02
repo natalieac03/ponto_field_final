@@ -44,6 +44,10 @@ _COLUMN_MIGRATIONS = [
     ("daily_records", "review_note", "VARCHAR(300)"),
     ("settings", "h1_minutes", "INTEGER DEFAULT 480 NOT NULL"),
     ("settings", "h2_minutes", "INTEGER DEFAULT 240 NOT NULL"),
+    ("settings", "company_cnpj", "VARCHAR(14)"),
+    ("settings", "company_name", "VARCHAR(150)"),
+    ("settings", "company_address", "VARCHAR(200)"),
+    ("settings", "rep_number", "VARCHAR(21)"),
 ]
 
 

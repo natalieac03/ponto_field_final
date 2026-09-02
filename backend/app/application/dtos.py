@@ -432,6 +432,10 @@ class SettingsUpdate(BaseModel):
     std_minutes: int = 480
     h1_minutes: Optional[int] = None
     h2_minutes: Optional[int] = None
+    company_cnpj: Optional[str] = None
+    company_name: Optional[str] = None
+    company_address: Optional[str] = None
+    rep_number: Optional[str] = None
 
     @field_validator("h1_minutes", "h2_minutes")
     @classmethod
@@ -441,6 +445,24 @@ class SettingsUpdate(BaseModel):
         if v < 0 or v > 1440:
             raise ValueError("Jornada deve estar entre 0 e 1440 minutos")
         return v
+
+    @field_validator("company_cnpj")
+    @classmethod
+    def cnpj_digits(cls, v: Optional[str]) -> Optional[str]:
+        if not v:
+            return None
+        digits = "".join(ch for ch in v if ch.isdigit())
+        if len(digits) != 14:
+            raise ValueError("CNPJ deve ter 14 dígitos")
+        return digits
+
+    @field_validator("company_name", "company_address", "rep_number")
+    @classmethod
+    def strip_or_none(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        v = v.strip()
+        return v or None
 
 
 class RecordRequestEdit(BaseModel):
@@ -510,6 +532,10 @@ class SettingsRead(BaseModel):
     h1_minutes: int = 480
     h2_minutes: int = 240
     has_admin_password: bool
+    company_cnpj: Optional[str] = None
+    company_name: Optional[str] = None
+    company_address: Optional[str] = None
+    rep_number: Optional[str] = None
 
     model_config = {"from_attributes": False}
 

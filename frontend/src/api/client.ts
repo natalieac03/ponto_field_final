@@ -289,6 +289,9 @@ export const api = {
     downloadFile(`/reports/range.csv?start=${start}&end=${end}${exportQuery(f)}`,
       `pontofield_${start}_a_${end}${f.suffix ?? ""}.csv`),
 
+  downloadAfd: (start: string, end: string) =>
+    downloadFile(`/reports/afd.txt?start=${start}&end=${end}`, `afd_${start}_a_${end}.txt`),
+
   getActivity: (days = 90) => request<ActivityLog[]>(`/activity?days=${days}`),
   getEmployeeActivity: (employeeId: number, year: number, month: number) =>
     request<ActivityLog[]>(`/activity/employee/${employeeId}?year=${year}&month=${month}`),

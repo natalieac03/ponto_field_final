@@ -192,6 +192,7 @@ export function Configuracoes({ employees, settings, onEmployeesChanged, onSetti
   const [empAlert, showEmpAlert] = useAutoDismissAlert(3500);
   const [settingsAlert, showSettingsAlert] = useAutoDismissAlert(3000);
   const [adminPassAlert, showAdminPassAlert] = useAutoDismissAlert(3000);
+  const [afdAlert, showAfdAlert] = useAutoDismissAlert(3000);
   const [recordCounts, setRecordCounts] = useState<Record<number, number>>({});
   const [newAdminPass, setNewAdminPass] = useState("");
   const [scheduleEditing, setScheduleEditing] = useState<Employee | null>(null);
@@ -202,10 +203,23 @@ export function Configuracoes({ employees, settings, onEmployeesChanged, onSetti
   const [weekdayH, setWeekdayH] = useState("8");
   const [satH, setSatH] = useState("4");
 
+  // Cadastro do empregador (usado só na exportação do AFD).
+  const [companyCnpj, setCompanyCnpj] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [companyAddress, setCompanyAddress] = useState("");
+  const [repNumber, setRepNumber] = useState("");
+  const [afdStart, setAfdStart] = useState("");
+  const [afdEnd, setAfdEnd] = useState("");
+  const [afdDownloading, setAfdDownloading] = useState(false);
+
   useEffect(() => {
     if (settings) {
       setWeekdayH(minToHoursStr(settings.h1_minutes));
       setSatH(minToHoursStr(settings.h2_minutes));
+      setCompanyCnpj(settings.company_cnpj ?? "");
+      setCompanyName(settings.company_name ?? "");
+      setCompanyAddress(settings.company_address ?? "");
+      setRepNumber(settings.rep_number ?? "");
     }
   }, [settings]);
 
@@ -245,6 +259,28 @@ export function Configuracoes({ employees, settings, onEmployeesChanged, onSetti
       onSettingsChanged(updated);
       showSettingsAlert("Jornada padrão salva.", "success");
     } catch (e: unknown) { showSettingsAlert(e instanceof Error ? e.message : "Erro.", "error"); }
+  };
+
+  const handleSaveCompany = async () => {
+    try {
+      const updated = await api.updateSettings({
+        company_cnpj: companyCnpj.trim() || null,
+        company_name: companyName.trim() || null,
+        company_address: companyAddress.trim() || null,
+        rep_number: repNumber.trim() || null,
+      });
+      onSettingsChanged(updated);
+      showAfdAlert("Dados da empresa salvos.", "success");
+    } catch (e: unknown) { showAfdAlert(e instanceof Error ? e.message : "Erro.", "error"); }
+  };
+
+  const handleDownloadAfd = async () => {
+    if (!afdStart || !afdEnd) return showAfdAlert("Informe o período (início e fim).", "error");
+    setAfdDownloading(true);
+    try {
+      await api.downloadAfd(afdStart, afdEnd);
+    } catch (e: unknown) { showAfdAlert(e instanceof Error ? e.message : "Erro.", "error"); }
+    finally { setAfdDownloading(false); }
   };
 
   const handleUpdateAdminPass = async () => {
@@ -407,6 +443,65 @@ export function Configuracoes({ employees, settings, onEmployeesChanged, onSetti
         <div style={{ marginTop: 14 }}>
           <Alert message={settingsAlert?.msg ?? null} type={settingsAlert?.type ?? "error"} />
           <button className="btn btn-primary" onClick={handleSaveJornada}>Salvar jornada padrão</button>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-title">Dados da empresa (AFD)</div>
+        <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 14 }}>
+          Usado só para exportar o AFD (Portaria MTP 671/2021) para uso interno.
+        </p>
+        <div style={{ background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.25)",
+          borderRadius: 10, padding: "10px 12px", marginBottom: 16, fontSize: 11.5,
+          color: "var(--muted)", lineHeight: 1.5 }}>
+          ⚠ Este sistema <strong>não é um REP homologado/certificado</strong> pelo INMETRO. O AFD
+          gerado aqui serve para conferência, backup e migração interna — ele <strong>não substitui</strong>{" "}
+          o AFD de um REP homologado exigido em fiscalização do Ministério do Trabalho.
+        </div>
+        <div className="form-grid">
+          <div className="form-group">
+            <label>CNPJ</label>
+            <input type="text" placeholder="00.000.000/0000-00" value={companyCnpj}
+              onChange={e => setCompanyCnpj(e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label>Razão social</label>
+            <input type="text" placeholder="Nome da empresa" value={companyName}
+              onChange={e => setCompanyName(e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label>Endereço</label>
+            <input type="text" placeholder="Endereço completo" value={companyAddress}
+              onChange={e => setCompanyAddress(e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label>Nº de registro do REP</label>
+            <input type="text" placeholder="Opcional" value={repNumber}
+              onChange={e => setRepNumber(e.target.value)} />
+          </div>
+        </div>
+        <div style={{ marginTop: 14 }}>
+          <Alert message={afdAlert?.msg ?? null} type={afdAlert?.type ?? "error"} />
+          <button className="btn btn-primary" onClick={handleSaveCompany}>Salvar dados da empresa</button>
+        </div>
+
+        <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px solid var(--border2)" }}>
+          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Exportar AFD</div>
+          <div className="form-grid">
+            <div className="form-group">
+              <label>Início</label>
+              <input type="date" value={afdStart} onChange={e => setAfdStart(e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label>Fim</label>
+              <input type="date" value={afdEnd} onChange={e => setAfdEnd(e.target.value)} />
+            </div>
+          </div>
+          <div style={{ marginTop: 14 }}>
+            <button className="btn btn-secondary" onClick={handleDownloadAfd} disabled={afdDownloading}>
+              {afdDownloading ? "Gerando…" : "⬇ Baixar AFD (.txt)"}
+            </button>
+          </div>
         </div>
       </div>
 

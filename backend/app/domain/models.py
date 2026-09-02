@@ -143,3 +143,8 @@ class Settings(SQLModel, table=True):
     h1_minutes: int = Field(default=480)
     h2_minutes: int = Field(default=240)
     admin_pin_hash: Optional[str] = Field(default=None)
+    # Cadastro do empregador — usado só na exportação do AFD (Portaria 671).
+    company_cnpj: Optional[str] = Field(default=None, max_length=14)
+    company_name: Optional[str] = Field(default=None, max_length=150)
+    company_address: Optional[str] = Field(default=None, max_length=200)
+    rep_number: Optional[str] = Field(default=None, max_length=21)

@@ -359,6 +359,30 @@ def _assemble_monthly(year: int, month: int, records_out: list[MonthlyRecord],
     )
 
 
+def afd_source(records: RecordRepository, employees: EmployeeRepository,
+               settings: SettingsRepository, start: str, end: str) -> dict:
+    """Dados brutos p/ montar o AFD (Portaria 671): batidas no intervalo +
+    cadastro do empregador. Uso interno — ver export_afd.py."""
+    s = settings.get_or_create()
+    emp_by_id = {e.id: e for e in employees.list_all()}
+    all_recs = [r for r in records.list_all() if start <= r.date <= end]
+
+    punches = []
+    for r in sorted(all_recs, key=lambda r: (r.date, r.employee_id)):
+        emp = emp_by_id.get(r.employee_id)
+        if emp is None:
+            continue
+        for t in (r.entry_time, r.break_start, r.break_end, r.exit_time):
+            if t:
+                punches.append({"date": r.date, "time": t, "employee_id": emp.id, "cpf": emp.cpf})
+
+    return {
+        "start": start, "end": end, "punches": punches,
+        "company_cnpj": s.company_cnpj, "company_name": s.company_name,
+        "company_address": s.company_address, "rep_number": s.rep_number,
+    }
+
+
 def pending_punches(records: RecordRepository, employees: EmployeeRepository,
                     settings: SettingsRepository, days: int = 7) -> list[PendingPunch]:
     """Colaboradores ativos com dia útil sem batida completa nos últimos `days`

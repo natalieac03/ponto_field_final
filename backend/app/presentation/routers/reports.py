@@ -4,7 +4,7 @@ from fastapi.responses import Response
 from app.application import reports as uc
 from app.application.dtos import BankEntry, BankReport, MonthlyReport, PendingPunch
 from app.application.identity import ensure_self_or_admin
-from app.infrastructure import export_xlsx as exporter
+from app.infrastructure import export_afd, export_xlsx as exporter
 from app.infrastructure.database import get_session
 from sqlmodel import Session
 from app.presentation.deps import (
@@ -161,6 +161,23 @@ def monthly_csv(year: int = Query(..., ge=2000, le=2100), month: int = Query(...
     return Response(
         content=content,
         media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+    )
+
+
+@router.get("/afd.txt")
+def afd_export(start: str = Query(..., description="AAAA-MM-DD"),
+               end: str = Query(..., description="AAAA-MM-DD"),
+               records=Depends(record_repo), employees=Depends(employee_repo),
+               settings=Depends(settings_repo), _admin: dict = Depends(require_admin)):
+    """AFD (Portaria 671) para uso interno — este sistema não é um REP
+    homologado; o arquivo não substitui o AFD de um REP certificado."""
+    source = uc.afd_source(records, employees, settings, start, end)
+    content = export_afd.build_afd(source).encode("iso-8859-1", errors="replace")
+    fname = f"afd_{start}_a_{end}.txt"
+    return Response(
+        content=content,
+        media_type="text/plain; charset=iso-8859-1",
         headers={"Content-Disposition": f'attachment; filename="{fname}"'},
     )
 
