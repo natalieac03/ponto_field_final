@@ -20,6 +20,24 @@ SUBDIV = "GO"
 
 VALID_KINDS = {"feriado", "facultativo", "evento"}
 
+BRASILAPI_TIMEOUT = 4
+
+
+def _national_holidays_api(year: int) -> dict[str, str] | None:
+    """Feriados nacionais via BrasilAPI. None se a API estiver indisponível
+    (fica a cargo do chamador cair para a biblioteca `holidays` local)."""
+    import json
+    import urllib.request
+
+    url = f"https://brasilapi.com.br/api/feriados/v1/{year}"
+    req = urllib.request.Request(url, headers={"User-Agent": "ponto-field/1.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=BRASILAPI_TIMEOUT) as resp:
+            data = json.loads(resp.read())
+        return {item["date"]: item["name"] for item in data}
+    except Exception:
+        return None
+
 
 def sync_engine(session: Session) -> None:
     """Lê calendar_days e instala no domínio (holidays + parciais + rótulos)."""
@@ -191,7 +209,13 @@ def delete(session: Session, day_id: int) -> None:
 
 
 def suggestions(session: Session, year: int) -> list[dict]:
-    """Feriados oficiais do ano: nacionais + GO + municipais de Goiânia."""
+    """Feriados oficiais do ano: nacionais + GO + municipais de Goiânia.
+
+    Nacionais vêm da BrasilAPI (fonte oficial, atualizada anualmente); se a
+    API estiver fora do ar, cai para a biblioteca `holidays` local. Estaduais
+    (GO) e facultativos não têm cobertura na BrasilAPI, então sempre vêm da
+    biblioteca.
+    """
     try:
         import holidays as _hl
     except ImportError:
@@ -199,12 +223,25 @@ def suggestions(session: Session, year: int) -> list[dict]:
 
     existing = {d.date for d in get_all(session)}
     found: dict[str, tuple[str, str]] = {}
+
+    api_national = _national_holidays_api(year)
+    if api_national:
+        for iso, name in api_national.items():
+            found[iso] = (name, "feriado")
+    else:
+        try:
+            national = _hl.Brazil(years=year)
+        except Exception:
+            national = {}
+        for d, name in national.items():
+            found[d.isoformat()] = (name, "feriado")
+
     try:
-        public = _hl.Brazil(subdiv=SUBDIV, years=year)
+        state = _hl.Brazil(subdiv=SUBDIV, years=year)
+        for d, name in state.items():
+            found.setdefault(d.isoformat(), (name, "feriado"))
     except Exception:
-        public = _hl.Brazil(years=year)
-    for d, name in public.items():
-        found[d.isoformat()] = (name, "feriado")
+        pass
     try:
         both = _hl.Brazil(subdiv=SUBDIV, years=year, categories=("public", "optional"))
         for d, name in both.items():
