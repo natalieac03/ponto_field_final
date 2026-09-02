@@ -35,18 +35,18 @@ const SUMMARY_COLS: Col[] = [
 ];
 
 const DETAIL_COLS: Col[] = [
-  { label: "Data", width: 52 },
-  { label: "Dia", width: 24, align: "center" },
-  { label: "Tipo", width: 26, align: "center" },
-  { label: "Entrada", width: 40, align: "center" },
-  { label: "Início", width: 40, align: "center" },
-  { label: "Fim", width: 40, align: "center" },
-  { label: "Saída", width: 40, align: "center" },
-  { label: "Trab.", width: 40, align: "right" },
-  { label: "Ref.", width: 38, align: "right" },
-  { label: "Saldo", width: 52, align: "right" },
-  { label: "Abono", width: 28, align: "center" },
-  { label: "Sit.", width: 22, align: "center" },
+  { label: "Data", width: 60 },
+  { label: "Dia", width: 28, align: "center" },
+  { label: "Tipo", width: 28, align: "center" },
+  { label: "Entrada", width: 46, align: "center" },
+  { label: "Início", width: 46, align: "center" },
+  { label: "Fim", width: 46, align: "center" },
+  { label: "Saída", width: 46, align: "center" },
+  { label: "Trab.", width: 46, align: "right" },
+  { label: "Ref.", width: 44, align: "right" },
+  { label: "Saldo", width: 60, align: "right" },
+  { label: "Abono", width: 32, align: "center" },
+  { label: "Sit.", width: 28, align: "center" },
 ];
 
 function DashboardPage({ report, summaries, scope }: {
@@ -179,7 +179,7 @@ function EmployeePage({ report, s, dayCtx }: { report: MonthlyReport; s: Monthly
 
       <View style={[styles.panel, { marginBottom: 8 }]}>
         <Text style={styles.panelTitle}>Saldo por semana</Text>
-        <BarChart data={weekly} width={510} height={62} />
+        <BarChart data={weekly} width={510} height={46} />
       </View>
 
       <Text style={styles.sectionTitle}>Detalhamento diário</Text>

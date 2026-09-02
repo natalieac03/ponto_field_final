@@ -112,17 +112,17 @@ export const styles = StyleSheet.create({
 
   // Painéis (gráficos)
   panelsRow: { flexDirection: "row", gap: 10, marginBottom: 10 },
-  panel: { flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 8, padding: 8, backgroundColor: C.white },
-  panelTitle: { fontFamily: "Helvetica-Bold", fontSize: 9, color: C.dark, marginBottom: 4 },
+  panel: { flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 8, padding: 6, backgroundColor: C.white },
+  panelTitle: { fontFamily: "Helvetica-Bold", fontSize: 9, color: C.dark, marginBottom: 3 },
 
   // Tabelas
   table: { borderWidth: 1, borderColor: C.border, borderRadius: 6, overflow: "hidden" },
   tHead: { flexDirection: "row", backgroundColor: C.blue },
-  tHeadCell: { color: C.white, fontFamily: "Helvetica-Bold", fontSize: 7.5, paddingVertical: 3, paddingHorizontal: 4, lineHeight: 1.1 },
+  tHeadCell: { color: C.white, fontFamily: "Helvetica-Bold", fontSize: 7.5, paddingVertical: 3, paddingHorizontal: 5, lineHeight: 1.1 },
   tRow: { flexDirection: "row", borderTopWidth: 1, borderTopColor: C.border },
-  tCell: { fontSize: 7.6, paddingVertical: 2, paddingHorizontal: 4, color: C.dark, lineHeight: 1.1 },
+  tCell: { fontSize: 7.6, paddingVertical: 2, paddingHorizontal: 5, color: C.dark, lineHeight: 1.1 },
   tTotal: { flexDirection: "row", backgroundColor: C.total, borderTopWidth: 1, borderTopColor: C.border },
-  tTotalCell: { fontFamily: "Helvetica-Bold", fontSize: 7.6, paddingVertical: 3, paddingHorizontal: 4, color: C.dark, lineHeight: 1.1 },
+  tTotalCell: { fontFamily: "Helvetica-Bold", fontSize: 7.6, paddingVertical: 3, paddingHorizontal: 5, color: C.dark, lineHeight: 1.1 },
 
   legend: { fontSize: 7, color: C.muted, marginTop: 5 },
 
@@ -134,7 +134,7 @@ export const styles = StyleSheet.create({
   },
 
   // Assinaturas
-  signRow: { flexDirection: "row", justifyContent: "space-around", gap: 44, marginTop: 16, marginBottom: 4 },
+  signRow: { flexDirection: "row", justifyContent: "space-around", gap: 44, marginTop: 26, marginBottom: 6 },
   signCell: { flex: 1, alignItems: "center" },
   signLine: { alignSelf: "stretch", borderTopWidth: 1, borderTopColor: C.dark, marginHorizontal: 12, marginBottom: 4 },
   signRole: { fontFamily: "Helvetica-Bold", fontSize: 8.5, color: C.dark },
