@@ -28,27 +28,44 @@ const brDate = (iso: string) => { const [, mo, d] = iso.split("-"); return `${d}
 /* ── Mini gráfico de saldo por semana (SVG web) ── */
 function WeekBars({ weeks }: { weeks: WeeklyBucket[] }) {
   if (weeks.length === 0) return <div style={{ color: "var(--muted)", fontSize: 13 }}>Sem dados no período.</div>;
-  const W = 340, H = 128, top = 14, bottom = H - 16;
+  const W = 340, H = 96, top = 14, bottom = H - 16;
   const plotH = bottom - top;
   const maxV = Math.max(0, ...weeks.map(w => w.balance));
   const minV = Math.min(0, ...weeks.map(w => w.balance));
   const range = maxV - minV || 60;
   const zeroY = top + (maxV / range) * plotH;
+  const plotHPos = zeroY - top;
+  const plotHNeg = bottom - zeroY;
   const slot = W / weeks.length;
   const barW = Math.min(30, slot * 0.5);
 
+  // Escala em raiz quadrada (por lado do zero): quando uma única semana
+  // discrepante domina a amplitude linear, as demais viram traços quase
+  // invisíveis. A raiz suaviza essa diferença sem deixar de refletir que
+  // valores maiores ainda são visivelmente maiores.
+  const barHeight = (v: number) => {
+    const side = v >= 0 ? maxV : Math.abs(minV);
+    const sidePlot = v >= 0 ? plotHPos : plotHNeg;
+    if (side <= 0) return 0;
+    return Math.sqrt(Math.abs(v) / side) * sidePlot;
+  };
+
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 140 }} preserveAspectRatio="xMidYMid meet">
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 108 }} preserveAspectRatio="xMidYMid meet">
       <line x1={0} y1={zeroY} x2={W} y2={zeroY} stroke="var(--border2)" strokeWidth={1} />
       {weeks.map((w, i) => {
         const cx = i * slot + slot / 2;
-        const h = (Math.abs(w.balance) / range) * plotH;
+        const h = barHeight(w.balance);
         const y = w.balance >= 0 ? zeroY - h : zeroY;
         const color = w.balance >= 0 ? POS : NEG;
+        const outsideY = w.balance >= 0 ? y - 3 : y + h + 10;
+        const fitsOutside = w.balance >= 0 ? outsideY >= 8 : outsideY <= bottom - 1;
+        const labelY = fitsOutside ? outsideY : (w.balance >= 0 ? y + 9 : y + h - 4);
+        const labelFill = fitsOutside ? color : "#fff";
         return (
           <g key={w.week}>
             <rect x={cx - barW / 2} y={y} width={barW} height={Math.max(h, 1.5)} rx={3} fill={color} />
-            <text x={cx} y={w.balance >= 0 ? y - 3 : Math.min(y + h + 10, bottom - 1)} fontSize={8.5} fontWeight={600} fill={color} textAnchor="middle">{hmSigned(w.balance)}</text>
+            <text x={cx} y={labelY} fontSize={8.5} fontWeight={600} fill={labelFill} textAnchor="middle">{hmSigned(w.balance)}</text>
             <text x={cx} y={H - 3} fontSize={8.5} fill="var(--muted)" textAnchor="middle">{w.label.split("–")[0]}</text>
           </g>
         );
