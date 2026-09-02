@@ -45,3 +45,6 @@ pontofield-deploy.tar.gz
 
 # ── Landpage WordPress (não faz parte do app) ───────────
 site/
+
+# ── Config local do Claude Code ─────────────────────────
+.claude/
