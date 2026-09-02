@@ -282,7 +282,7 @@ uvicorn app.main:app --host 0.0.0.0 --port $PORT
 
 ## 🗺️ Roadmap
 
-- [ ] Testes automatizados do domínio (a arquitetura já está preparada)
+- [x] Testes automatizados do domínio (`backend/tests/`)
 - [ ] Exportação do AFD (Portaria 671) para fiscalização
 - [ ] Notificação de ponto não batido
 - [ ] Feriados carregados por ano via API (hoje: biblioteca + calendário editável)

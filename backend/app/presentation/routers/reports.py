@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
 
 from app.application import reports as uc
-from app.application.dtos import BankEntry, BankReport, MonthlyReport
+from app.application.dtos import BankEntry, BankReport, MonthlyReport, PendingPunch
 from app.application.identity import ensure_self_or_admin
 from app.infrastructure import export_xlsx as exporter
 from app.infrastructure.database import get_session
@@ -42,6 +42,14 @@ def employee_bank(
     """Banco de horas acumulado do próprio colaborador (ou admin)."""
     ensure_self_or_admin(identity, employee_id)
     return uc.build_employee_bank(records, employees, settings, employee_id)
+
+
+@router.get("/pending-punches", response_model=list[PendingPunch])
+def pending_punches(days: int = Query(7, ge=1, le=90),
+                    records=Depends(record_repo), employees=Depends(employee_repo),
+                    settings=Depends(settings_repo), _admin: dict = Depends(require_admin)):
+    """Colaboradores com dia útil sem batida completa nos últimos `days` dias."""
+    return uc.pending_punches(records, employees, settings, days)
 
 
 @router.get("/monthly", response_model=MonthlyReport)

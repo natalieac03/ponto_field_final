@@ -13,10 +13,11 @@ import { EmployeePortal } from "./pages/EmployeePortal";
 import { Landing } from "./pages/Landing";
 import { RelatorioMensal } from "./pages/RelatorioMensal";
 import { PendingApprovals } from "./features/approvals/PendingApprovals";
+import { PendingPunches } from "./features/attendance-alerts/PendingPunches";
 import { AdminActivity } from "./features/activity/AdminActivity";
 import type { Employee, Session, Settings } from "./types";
 
-type AdminTab = "banco" | "aprovacoes" | "atividades" | "relatorio" | "ferias" | "agenda" | "calendario" | "config";
+type AdminTab = "banco" | "aprovacoes" | "pendencias" | "atividades" | "relatorio" | "ferias" | "agenda" | "calendario" | "config";
 
 function fmtClock(d: Date) {
   return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -49,6 +50,7 @@ export default function App() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [adminTab, setAdminTab] = useState<AdminTab>("banco");
   const [pendingCount, setPendingCount] = useState(0);
+  const [pendingPunchesCount, setPendingPunchesCount] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const now = useNow();
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -56,6 +58,7 @@ export default function App() {
   const loadEmployees = () => api.getEmployees().then(setEmployees).catch(console.error);
   const loadSettings  = () => api.getSettings().then(setSettings).catch(console.error);
   const loadPending   = () => api.getPendingRecords().then(rs => setPendingCount(rs.length)).catch(() => setPendingCount(0));
+  const loadPendingPunches = () => api.getPendingPunches().then(rs => setPendingPunchesCount(rs.length)).catch(() => setPendingPunchesCount(0));
 
   // Settings é público (o app lê std/h1/h2). Employees agora é restrito ao admin.
   useEffect(() => {
@@ -67,6 +70,7 @@ export default function App() {
     if (session?.role === "admin") {
       loadEmployees();
       loadPending();
+      loadPendingPunches();
     }
   }, [session?.role]);
 
@@ -234,6 +238,12 @@ export default function App() {
                 <span className="tab-badge">{pendingCount}</span>
               )}
             </button>
+            <button className={`tab${adminTab === "pendencias" ? " active" : ""}`} onClick={() => setAdminTab("pendencias")}>
+              Pendências
+              {pendingPunchesCount > 0 && (
+                <span className="tab-badge">{pendingPunchesCount}</span>
+              )}
+            </button>
             <button className={`tab${adminTab === "atividades" ? " active" : ""}`} onClick={() => setAdminTab("atividades")}>Atividades</button>
             <button className={`tab${adminTab === "relatorio"  ? " active" : ""}`} onClick={() => setAdminTab("relatorio")}>Relatório Mensal</button>
             <button className={`tab${adminTab === "ferias"     ? " active" : ""}`} onClick={() => setAdminTab("ferias")}>Férias</button>
@@ -248,6 +258,7 @@ export default function App() {
         {adminTab === "agenda"     && <RelatorioAgenda />}
         {adminTab === "calendario" && <Calendario />}
         {adminTab === "aprovacoes" && <PendingApprovals employees={employees} onChanged={loadPending} />}
+        {adminTab === "pendencias" && <PendingPunches />}
         {adminTab === "atividades" && <AdminActivity />}
         {adminTab === "relatorio"  && <RelatorioMensal />}
         {adminTab === "config"     && (

@@ -600,3 +600,12 @@ class MonthlyReport(BaseModel):
     total_extra100: int
     total_night_bonus: int
     pending_records: int
+
+
+class PendingPunch(BaseModel):
+    employee_id: int
+    employee_name: str
+    date: str
+    kind: str            # "falta" (nenhuma batida) | "aberto" (entrou mas não fechou)
+    entry_time: str | None = None
+    exit_time: str | None = None

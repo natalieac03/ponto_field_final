@@ -1,9 +1,9 @@
 """Casos de uso de relatórios. Cruzam repositórios com a agregação do domínio (banking)."""
 import json
-from datetime import date as date_cls
+from datetime import date as date_cls, timedelta
 
 from app.application.dtos import (
-    BankEntry, BankReport, MonthlyRecord, MonthlyReport, MonthlySummary, WeeklyBucket,
+    BankEntry, BankReport, MonthlyRecord, MonthlyReport, MonthlySummary, PendingPunch, WeeklyBucket,
 )
 from app.application.employees import schedule_tuple
 from app.application import cpf as cpf_utils
@@ -357,3 +357,36 @@ def _assemble_monthly(year: int, month: int, records_out: list[MonthlyRecord],
         total_night_bonus=sum(s.night_bonus_minutes for s in summaries),
         pending_records=sum(s.pending for s in summaries),
     )
+
+
+def pending_punches(records: RecordRepository, employees: EmployeeRepository,
+                    settings: SettingsRepository, days: int = 7) -> list[PendingPunch]:
+    """Colaboradores ativos com dia útil sem batida completa nos últimos `days`
+    dias (sem contar hoje, que ainda pode estar em andamento). Falta = nenhum
+    registro no dia; Aberto = bateu entrada mas não fechou (sem saída nem abono).
+    """
+    s = settings.get_or_create()
+    h1, h2 = s.h1_minutes, s.h2_minutes
+    today = date_cls.today()
+    out: list[PendingPunch] = []
+    for emp in employees.list_all():
+        if not getattr(emp, "active", True):
+            continue
+        schedule = schedule_tuple(emp)
+        for delta in range(1, days + 1):
+            d = today - timedelta(days=delta)
+            iso = d.isoformat()
+            override = accounting.weekday_reference_override(schedule, iso)
+            on_leave = accounting.is_on_leave(emp.id, iso)
+            expected = accounting.employee_reference(emp.id, iso, None, h1, h2, override, on_leave=on_leave)
+            if expected <= 0:
+                continue
+            rec = records.get_for_day(emp.id, iso)
+            if rec is None:
+                out.append(PendingPunch(employee_id=emp.id, employee_name=emp.name,
+                                        date=iso, kind="falta"))
+            elif not rec.abono_code and not rec.exit_time:
+                out.append(PendingPunch(employee_id=emp.id, employee_name=emp.name,
+                                        date=iso, kind="aberto", entry_time=rec.entry_time))
+    out.sort(key=lambda p: (p.date, p.employee_name))
+    return out

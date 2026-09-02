@@ -310,6 +310,15 @@ export interface MonthlyReport {
   pending_records: number;
 }
 
+export interface PendingPunch {
+  employee_id: number;
+  employee_name: string;
+  date: string;
+  kind: "falta" | "aberto";
+  entry_time: string | null;
+  exit_time: string | null;
+}
+
 export interface AuthSession {
   role: "employee";
   employee: { id: number; name: string };

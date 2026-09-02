@@ -3,6 +3,7 @@ import type {
   MonthlyReport, RecordCreate, RecordPatchBreak, RecordPatchExit, RecordPatchNote,
   RecordPatchTimes, RecordRequestEdit, RecordReview, Settings, SettingsUpdate, WeeklySchedule,
   CalendarDay, CalendarKind, HolidaySuggestion, EmployeeLeave, EmployeeShift, LeaveKind, VacationReport,
+  PendingPunch,
 } from "../types";
 
 export type EmployeeCreatePayload = { name: string; pin?: string } & EmployeeProfileUpdate;
@@ -265,6 +266,7 @@ export const api = {
     request<Settings>("/settings/admin-password", { method: "PUT", body: JSON.stringify({ password }) }),
 
   getBankReport: () => request<BankReport>("/reports/bank"),
+  getPendingPunches: (days = 7) => request<PendingPunch[]>(`/reports/pending-punches?days=${days}`),
   getMonthlyReport: (year: number, month: number) =>
     request<MonthlyReport>(`/reports/monthly?year=${year}&month=${month}`),
   getEmployeeMonthly: (employeeId: number, year: number, month: number) =>
