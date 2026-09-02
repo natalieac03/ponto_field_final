@@ -3,6 +3,7 @@ import { useThemedAssets } from "../assets";
 import { api } from "../api/client";
 import { Avatar } from "../components/Avatar";
 import { Badge, fmtDate, fmtMin, fmtMinUnsigned } from "../components/Badge";
+import { confirmDialog } from "../components/ConfirmDialog";
 import { ImageLightbox } from "../components/ImageLightbox";
 import { ThemeToggleCompact } from "../components/ThemeToggle";
 import { isImage, isPdf } from "../helpers/attachments";
@@ -345,7 +346,7 @@ export function EmployeePortal({ employee, onLogout }: Props) {
 
   const handleRemovePhoto = async () => {
     if (!me?.photo) return;
-    if (!confirm("Remover sua foto de perfil?")) return;
+    if (!(await confirmDialog("Remover sua foto de perfil?", { danger: true }))) return;
     setPhotoBusy(true);
     try {
       const updated = await api.deleteEmployeePhoto(employee.id);
@@ -367,7 +368,7 @@ export function EmployeePortal({ employee, onLogout }: Props) {
 
   const requestRemove = async (r: DailyRecord) => {
     if (r.removal_requested) return;
-    if (!confirm(`Solicitar exclusão do registro de ${fmtDate(r.date)}? O gestor precisa aprovar.`)) return;
+    if (!(await confirmDialog(`Solicitar exclusão do registro de ${fmtDate(r.date)}? O gestor precisa aprovar.`))) return;
     setRowBusyId(r.id);
     try {
       await api.requestRemoveRecord(r.id);
@@ -514,7 +515,7 @@ export function EmployeePortal({ employee, onLogout }: Props) {
 
   const handleDeleteAttachment = async (filename: string) => {
     if (!todayRecord) return;
-    if (!confirm("Remover este anexo?")) return;
+    if (!(await confirmDialog("Remover este anexo?", { danger: true }))) return;
     setLoading("delete-att");
     try {
       await api.deleteAttachment(todayRecord.id, filename);

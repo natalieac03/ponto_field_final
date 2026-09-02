@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../../api/client";
 import { Badge, fmtDate, fmtMinUnsigned } from "../../components/Badge";
+import { alertDialog, confirmDialog } from "../../components/ConfirmDialog";
 import { StatCard } from "../../components/StatCard";
 import type { DailyRecord, Employee } from "../../types";
 
@@ -31,7 +32,7 @@ export function PendingApprovals({ employees, onChanged }: {
   const review = async (r: DailyRecord, action: "approve" | "reject") => {
     let note: string | undefined;
     if (action === "approve" && r.removal_requested) {
-      if (!window.confirm("Confirmar a EXCLUSÃO deste registro? Esta ação não pode ser desfeita.")) return;
+      if (!(await confirmDialog("Confirmar a EXCLUSÃO deste registro? Esta ação não pode ser desfeita.", { danger: true }))) return;
     }
     if (action === "reject") {
       const label = r.removal_requested ? "Motivo para negar a exclusão (opcional):" : "Motivo da reprovação (opcional):";
@@ -45,7 +46,7 @@ export function PendingApprovals({ employees, onChanged }: {
       setPending(prev => prev.filter(p => p.id !== r.id));
       onChanged?.();
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Falha ao processar.");
+      alertDialog(e instanceof Error ? e.message : "Falha ao processar.");
     } finally { setBusyId(null); }
   };
 

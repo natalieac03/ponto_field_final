@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
+import { confirmDialog } from "../components/ConfirmDialog";
 import { Modal } from "../components/Modal";
 import { ESCALA_COLOR, FERIAS_COLOR, KIND, MONTHS, WD, fmtDeduct, iso } from "../features/calendar/shared";
 import { AccordionGroup, EmptyGroupState, GroupFilters } from "../features/calendar/GroupedList";
@@ -261,7 +262,7 @@ export function Calendario() {
                           <td>
                             <button className="btn btn-danger btn-sm"
                               onClick={async () => {
-                                if (!confirm(`Remover a escala de ${empName(sh.employee_id)} em ${sh.date.split("-").reverse().join("/")}?`)) return;
+                                if (!(await confirmDialog(`Remover a escala de ${empName(sh.employee_id)} em ${sh.date.split("-").reverse().join("/")}?`, { danger: true }))) return;
                                 try { await api.deleteShift(sh.id); loadShifts(); flash("Escala removida."); }
                                 catch (e) { flash(e instanceof Error ? e.message : "Erro."); }
                               }}>Remover</button>
@@ -309,7 +310,7 @@ export function Calendario() {
                           <td>
                             <button className="btn btn-danger btn-sm"
                               onClick={async () => {
-                                if (!confirm(`Remover as férias de ${empName(lv.employee_id)}?`)) return;
+                                if (!(await confirmDialog(`Remover as férias de ${empName(lv.employee_id)}?`, { danger: true }))) return;
                                 try { await api.deleteLeave(lv.id); loadLeaves(); flash("Período removido."); }
                                 catch (e) { flash(e instanceof Error ? e.message : "Erro."); }
                               }}>Remover</button>
@@ -368,7 +369,8 @@ function DayModal({ date, existing, shiftNames, leaveNames, onClose, onSaved }: 
   };
 
   const remove = async () => {
-    if (!existing || !confirm(`Remover a marcação de ${d}/${m}/${y}?`)) return;
+    if (!existing) return;
+    if (!(await confirmDialog(`Remover a marcação de ${d}/${m}/${y}?`, { danger: true }))) return;
     setSaving(true);
     try { await api.deleteCalendarDay(existing.id); onSaved(); onClose(); }
     catch (e) { setErr(e instanceof Error ? e.message : "Erro."); }

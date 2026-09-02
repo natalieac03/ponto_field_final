@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../../api/client";
 import { downloadMonthlyPdf } from "../reports/pdf/generate";
 import { Badge, fmtMinUnsigned } from "../../components/Badge";
+import { alertDialog } from "../../components/ConfirmDialog";
 import type { BankEntry, MonthlyReport, WeeklyBucket } from "../../types";
 
 const MONTHS = [
@@ -100,7 +101,7 @@ export function MeuEspelho({ employeeId }: { employeeId: number }) {
       const nome = s.employee_name.replace(/\s+/g, "_").toLowerCase();
       await downloadMonthlyPdf(report, report.summary, s.employee_name, `espelho_${nome}_${tag}.pdf`);
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Não foi possível gerar o PDF.");
+      alertDialog(e instanceof Error ? e.message : "Não foi possível gerar o PDF.");
     } finally { setDownloading(false); }
   };
   const changeMonth = (dir: -1 | 1) => {

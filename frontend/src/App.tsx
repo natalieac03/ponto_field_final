@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, setAuthToken, setOnUnauthorized } from "./api/client";
 import { useThemedAssets } from "./assets";
 import { Avatar } from "./components/Avatar";
+import { ConfirmHost } from "./components/ConfirmDialog";
 import { ThemeToggleCompact } from "./components/ThemeToggle";
 import { BancoHoras } from "./pages/BancoHoras";
 import { Calendario } from "./pages/Calendario";
@@ -148,13 +149,19 @@ export default function App() {
 
   // ── Employee portal ───────────────────────────────────────────────────────
   if (session?.role === "employee") {
-    return <EmployeePortal employee={session.employee} onLogout={handleLogout} />;
+    return (
+      <>
+        <EmployeePortal employee={session.employee} onLogout={handleLogout} />
+        <ConfirmHost />
+      </>
+    );
   }
 
   // ── Admin panel ───────────────────────────────────────────────────────────
   if (session?.role === "admin") {
     return (
       <div className="shell">
+        <ConfirmHost />
         <header className="emp-header">
           {/* Logo invisível como botão de voltar */}
           <div className="emp-header-logo">
@@ -256,5 +263,10 @@ export default function App() {
   }
 
   // ── Landing ───────────────────────────────────────────────────────────────
-  return <Landing onEmployeeLogin={handleEmployeeLogin} onAdminLogin={handleAdminLogin} />;
+  return (
+    <>
+      <Landing onEmployeeLogin={handleEmployeeLogin} onAdminLogin={handleAdminLogin} />
+      <ConfirmHost />
+    </>
+  );
 }

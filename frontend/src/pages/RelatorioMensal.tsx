@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
 import { Badge, fmtDate, fmtMin, fmtMinUnsigned } from "../components/Badge";
+import { alertDialog } from "../components/ConfirmDialog";
 import { Modal } from "../components/Modal";
 import { downloadMonthlyPdf } from "../features/reports/pdf/generate";
 import { ImageLightbox } from "../components/ImageLightbox";
@@ -267,11 +268,11 @@ export function RelatorioMensal() {
 
   const exportExcel = async () => {
     try { await api.downloadRangeXlsx(effectiveStart, effectiveEnd, exportFilter); }
-    catch (e) { alert(e instanceof Error ? e.message : "Falha ao gerar Excel."); }
+    catch (e) { alertDialog(e instanceof Error ? e.message : "Falha ao gerar Excel."); }
   };
   const exportCSV = async () => {
     try { await api.downloadRangeCsv(effectiveStart, effectiveEnd, exportFilter); }
-    catch (e) { alert(e instanceof Error ? e.message : "Falha ao gerar CSV."); }
+    catch (e) { alertDialog(e instanceof Error ? e.message : "Falha ao gerar CSV."); }
   };
 
   /* ── PDF: dashboard + espelhos, seguindo os filtros da tela ── */
@@ -284,7 +285,7 @@ export function RelatorioMensal() {
     const suffix = nome ? nome.replace(/\s+/g, "_").toLowerCase() : "todos";
     setPdfBusy(true);
     try { await downloadMonthlyPdf(report, displaySummary, scope, `pontofield_${effectiveStart}_a_${effectiveEnd}_${suffix}.pdf`); }
-    catch (e) { alert(e instanceof Error ? e.message : "Falha ao gerar PDF."); }
+    catch (e) { alertDialog(e instanceof Error ? e.message : "Falha ao gerar PDF."); }
     finally { setPdfBusy(false); }
   };
 

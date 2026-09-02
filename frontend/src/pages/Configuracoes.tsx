@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { Alert } from "../components/Alert";
 import { Avatar } from "../components/Avatar";
+import { alertDialog, confirmDialog } from "../components/ConfirmDialog";
 import { Modal } from "../components/Modal";
 import { EmployeeFormModal } from "../features/employees/EmployeeFormModal";
 import { useAutoDismissAlert } from "../hooks/useAutoDismissAlert";
@@ -50,6 +51,33 @@ interface ScheduleModalProps {
   defaultMinutes: number;
   onClose: () => void;
   onSaved: () => void;
+}
+
+/** Uma linha de dia no modal de jornada: label | input | resumo (só aparece quando há valor customizado). */
+function DayRow({ day, value, onChange }: {
+  day: { key: keyof WeeklySchedule; label: string; short: string };
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const num = value ? Number(value) : null;
+  const isCustom = Number.isInteger(num);
+  return (
+    <div className="weekday-row">
+      <label style={{ fontSize: 13, fontWeight: 600 }}>{day.label}</label>
+      <input
+        type="number"
+        min={0}
+        max={1440}
+        placeholder="padrão"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+      />
+      <div style={{ fontSize: 11, fontFamily: "var(--mono)", textAlign: "right",
+        color: isCustom ? "var(--accent)" : "var(--muted)", opacity: isCustom ? 1 : 0.5 }}>
+        {isCustom ? fmtMinAsHours(num) : "—"}
+      </div>
+    </div>
+  );
 }
 
 function ScheduleModal({ employee, defaultMinutes, onClose, onSaved }: ScheduleModalProps) {
@@ -101,55 +129,51 @@ function ScheduleModal({ employee, defaultMinutes, onClose, onSaved }: ScheduleM
     }));
   };
 
+  const weekdayList = WEEKDAYS.filter(d => d.key !== "sat_minutes" && d.key !== "sun_minutes");
+  const weekendList = WEEKDAYS.filter(d => d.key === "sat_minutes" || d.key === "sun_minutes");
+
   return (
     <Modal title="📅 Jornada semanal" onClose={onClose}>
-        <div style={{ fontSize: 12, color: "var(--muted)", marginTop: -6, marginBottom: 16 }}>
-          {employee.name} · minutos esperados por dia da semana
+        <div style={{ fontSize: 12, color: "var(--muted)", marginTop: -6, marginBottom: 14 }}>
+          {employee.name}
         </div>
-
-        <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 12, lineHeight: 1.5 }}>
-          💡 Deixe em branco para usar o padrão global (<strong>{fmtMinAsHours(defaultMinutes)}</strong>).
-          Digite <strong>0</strong> para marcar como folga/descanso.
-        </p>
 
         <div style={{ background: "rgba(37,99,235,0.06)", border: "1px solid rgba(37,99,235,0.2)",
-          borderRadius: 10, padding: "10px 12px", marginBottom: 14, fontSize: 11.5,
+          borderRadius: 10, padding: "10px 12px", marginBottom: 16, fontSize: 11.5,
           color: "var(--muted)", lineHeight: 1.5 }}>
-          ℹ️ Só preencha aqui se este colaborador tiver jornada <strong>diferente</strong> das 44h
-          semanais (meio período, folga fixa etc.). Escala de sábado <strong>não</strong> se
-          configura aqui — marque na aba <strong>Calendário → 📋 Marcar escala</strong>.
+          💡 Preencha só os dias em que este colaborador foge da jornada padrão da empresa
+          (<strong>{fmtMinAsHours(defaultMinutes)}</strong>/dia, 44h semanais) — meio período, folga fixa etc.
+          Deixe em branco para usar o padrão, ou digite <strong>0</strong> para folga.
+          Escala de sábado <strong>não</strong> se configura aqui — marque na aba <strong>Calendário → 📋 Marcar escala</strong>.
         </div>
 
-        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
           <button className="btn btn-secondary btn-sm" onClick={() => applyToAllWeekdays("480")}>
-            🕗 8h (480 min) seg-sex
+            🕗 8h em todos os dias úteis
           </button>
           <button className="btn btn-secondary btn-sm" onClick={() => applyToAllWeekdays("")}>
-            ↺ Resetar
+            ↺ Limpar (usar padrão)
           </button>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
-          {WEEKDAYS.map(day => {
-            const val = values[day.key];
-            const num = val ? Number(val) : null;
-            return (
-              <div key={day.key} className="weekday-row">
-                <label style={{ fontSize: 13, fontWeight: 600 }}>{day.label}</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={1440}
-                  placeholder="padrão"
-                  value={val}
-                  onChange={e => setValues(v => ({ ...v, [day.key]: e.target.value }))}
-                />
-                <div style={{ fontSize: 11, color: "var(--muted)", fontFamily: "var(--mono)", textAlign: "right" }}>
-                  {Number.isInteger(num) ? fmtMinAsHours(num) : <span style={{ color: "var(--accent)" }}>padrão</span>}
-                </div>
-              </div>
-            );
-          })}
+        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 8 }}>
+          Dias úteis
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+          {weekdayList.map(day => (
+            <DayRow key={day.key} day={day} value={values[day.key]}
+              onChange={v => setValues(vals => ({ ...vals, [day.key]: v }))} />
+          ))}
+        </div>
+
+        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 8 }}>
+          Fim de semana
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 18 }}>
+          {weekendList.map(day => (
+            <DayRow key={day.key} day={day} value={values[day.key]}
+              onChange={v => setValues(vals => ({ ...vals, [day.key]: v }))} />
+          ))}
         </div>
 
         {error && <div className="alert alert-error" style={{ marginBottom: 12 }}>{error}</div>}
@@ -194,13 +218,13 @@ export function Configuracoes({ employees, settings, onEmployeesChanged, onSetti
   }, [employees]);
 
   const [offboarding, setOffboarding] = useState<Employee | null>(null);
-  const [showInactive, setShowInactive] = useState(false);
+  const [empView, setEmpView] = useState<"ativos" | "desligados">("ativos");
 
   const activeEmployees = employees.filter(e => e.active);
   const inactiveEmployees = employees.filter(e => !e.active);
 
   const handleReactivate = async (emp: Employee) => {
-    if (!confirm(`Reativar ${emp.name}? Ele volta a aparecer na tela de login.`)) return;
+    if (!(await confirmDialog(`Reativar ${emp.name}? Ele volta a aparecer na tela de login.`))) return;
     try { await api.reactivateEmployee(emp.id); showEmpAlert(`${emp.name} reativado.`, "success"); onEmployeesChanged(); }
     catch (e: unknown) { showEmpAlert(e instanceof Error ? e.message : "Erro.", "error"); }
   };
@@ -249,9 +273,20 @@ export function Configuracoes({ employees, settings, onEmployeesChanged, onSetti
           Cadastre nome, dados de RH (cargo, admissão, contato) e foto. O PIN inicial é opcional — se vazio, o colaborador cria a própria senha no 1º acesso.
         </p>
         <Alert message={empAlert?.msg ?? null} type={empAlert?.type ?? "error"} />
+
+        <div className="tabs" style={{ marginBottom: 14 }}>
+          <button className={`tab ${empView === "ativos" ? "active" : ""}`} onClick={() => setEmpView("ativos")}>
+            Ativos ({activeEmployees.length})
+          </button>
+          <button className={`tab ${empView === "desligados" ? "active" : ""}`} onClick={() => setEmpView("desligados")}>
+            Desligados ({inactiveEmployees.length})
+          </button>
+        </div>
+
+        {empView === "ativos" && (
         <div className="emp-list">
           {activeEmployees.length === 0
-            ? <div className="empty">Nenhum colaborador cadastrado.</div>
+            ? <div className="empty">Nenhum colaborador ativo.</div>
             : activeEmployees.map(emp => (
               <div className="emp-item" key={emp.id}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
@@ -261,12 +296,12 @@ export function Configuracoes({ employees, settings, onEmployeesChanged, onSetti
                       <button
                         onClick={async () => {
                           const on = !emp.is_admin;
-                          if (on && !emp.has_password) { alert(`${emp.name} precisa definir a senha no 1º acesso antes de virar admin.`); return; }
-                          if (!confirm(on
+                          if (on && !emp.has_password) { await alertDialog(`${emp.name} precisa definir a senha no 1º acesso antes de virar admin.`); return; }
+                          if (!(await confirmDialog(on
                             ? `Dar acesso de ADMINISTRADOR para ${emp.name}?\nEle entra no painel com a própria senha e o nome fica na trilha de auditoria.`
-                            : `Remover o acesso de administrador de ${emp.name}?`)) return;
+                            : `Remover o acesso de administrador de ${emp.name}?`))) return;
                           try { await api.updateEmployeeProfile(emp.id, { is_admin: on }); onEmployeesChanged(); }
-                          catch (e) { alert(e instanceof Error ? e.message : "Erro."); }
+                          catch (e) { alertDialog(e instanceof Error ? e.message : "Erro."); }
                         }}
                         title={emp.is_admin ? "Administrador — clique para remover" : "Dar acesso de administrador"}
                         style={{ background: "none", border: "none", cursor: "pointer", fontSize: 17, padding: "0 2px",
@@ -299,48 +334,37 @@ export function Configuracoes({ employees, settings, onEmployeesChanged, onSetti
               </div>
             ))}
         </div>
+        )}
 
-        {inactiveEmployees.length > 0 && (
-          <div style={{ marginTop: 14, borderTop: "1px solid var(--border2)", paddingTop: 12 }}>
-            <button
-              onClick={() => setShowInactive(v => !v)}
-              style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font)",
-                fontSize: 12.5, fontWeight: 600, color: "var(--muted)", padding: 0,
-                display: "inline-flex", alignItems: "center", gap: 6 }}
-            >
-              <span style={{ transform: showInactive ? "rotate(90deg)" : "none", transition: "transform .15s" }}>▸</span>
-              Desligados ({inactiveEmployees.length})
-            </button>
-
-            {showInactive && (
-              <div className="emp-list" style={{ marginTop: 10 }}>
-                {inactiveEmployees.map(emp => (
-                  <div className="emp-item" key={emp.id} style={{ opacity: 0.72 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <Avatar name={emp.name} src={emp.photo ? api.employeePhotoUrl(emp.photo) : null} size={40} />
-                      <div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                          <div className="emp-name">{emp.name}</div>
-                          <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20,
-                            background: "rgba(148,163,184,0.18)", color: "var(--muted)", letterSpacing: 0.4 }}>
-                            DESLIGADO
-                          </span>
-                        </div>
-                        <div className="emp-meta">
-                          {emp.termination_date && <>desde {emp.termination_date.split("-").reverse().join("/")} &nbsp;·&nbsp; </>}
-                          {recordCounts[emp.id] ?? 0} registro(s) preservado(s)
-                        </div>
+        {empView === "desligados" && (
+          <div className="emp-list">
+            {inactiveEmployees.length === 0
+              ? <div className="empty">Nenhum colaborador desligado.</div>
+              : inactiveEmployees.map(emp => (
+                <div className="emp-item" key={emp.id} style={{ opacity: 0.72 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <Avatar name={emp.name} src={emp.photo ? api.employeePhotoUrl(emp.photo) : null} size={40} />
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <div className="emp-name">{emp.name}</div>
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20,
+                          background: "rgba(148,163,184,0.18)", color: "var(--muted)", letterSpacing: 0.4 }}>
+                          DESLIGADO
+                        </span>
+                      </div>
+                      <div className="emp-meta">
+                        {emp.termination_date && <>desde {emp.termination_date.split("-").reverse().join("/")} &nbsp;·&nbsp; </>}
+                        {recordCounts[emp.id] ?? 0} registro(s) preservado(s)
                       </div>
                     </div>
-                    <div className="emp-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <button className="btn btn-secondary btn-sm" onClick={() => setFormEditing(emp)}>✎ Editar</button>
-                      <button className="btn btn-primary btn-sm" onClick={() => handleReactivate(emp)}>↩ Reativar</button>
-                      <button className="btn btn-danger btn-sm" onClick={() => setOffboarding(emp)}>Apagar…</button>
-                    </div>
                   </div>
-                ))}
-              </div>
-            )}
+                  <div className="emp-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button className="btn btn-secondary btn-sm" onClick={() => setFormEditing(emp)}>✎ Editar</button>
+                    <button className="btn btn-primary btn-sm" onClick={() => handleReactivate(emp)}>↩ Reativar</button>
+                    <button className="btn btn-danger btn-sm" onClick={() => setOffboarding(emp)}>Apagar…</button>
+                  </div>
+                </div>
+              ))}
           </div>
         )}
       </div>
@@ -360,8 +384,7 @@ export function Configuracoes({ employees, settings, onEmployeesChanged, onSetti
           Referência do banco de horas para quem não tem jornada personalizada. Domingos/feriados não têm referência.
         </p>
         <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-          <button className="btn btn-secondary btn-sm" onClick={() => applyPreset("8", "4")}>44h (8h seg–sex + 4h sáb)</button>
-          <button className="btn btn-secondary btn-sm" onClick={() => applyPreset("8", "0")}>40h (8h seg–sex, sem sábado)</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => applyPreset("8", "4")}>↺ Restaurar 44h padrão (8h seg–sex + 4h sáb)</button>
         </div>
         <div className="form-grid">
           <div className="form-group">
