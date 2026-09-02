@@ -5,6 +5,7 @@ import { Avatar } from "./components/Avatar";
 import { ThemeToggleCompact } from "./components/ThemeToggle";
 import { BancoHoras } from "./pages/BancoHoras";
 import { Calendario } from "./pages/Calendario";
+import { RelatorioAgenda } from "./pages/RelatorioAgenda";
 import { RelatorioFerias } from "./pages/RelatorioFerias";
 import { Configuracoes } from "./pages/Configuracoes";
 import { EmployeePortal } from "./pages/EmployeePortal";
@@ -14,7 +15,7 @@ import { PendingApprovals } from "./features/approvals/PendingApprovals";
 import { AdminActivity } from "./features/activity/AdminActivity";
 import type { Employee, Session, Settings } from "./types";
 
-type AdminTab = "banco" | "aprovacoes" | "atividades" | "relatorio" | "ferias" | "calendario" | "config";
+type AdminTab = "banco" | "aprovacoes" | "atividades" | "relatorio" | "ferias" | "agenda" | "calendario" | "config";
 
 function fmtClock(d: Date) {
   return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -229,6 +230,7 @@ export default function App() {
             <button className={`tab${adminTab === "atividades" ? " active" : ""}`} onClick={() => setAdminTab("atividades")}>Atividades</button>
             <button className={`tab${adminTab === "relatorio"  ? " active" : ""}`} onClick={() => setAdminTab("relatorio")}>Relatório Mensal</button>
             <button className={`tab${adminTab === "ferias"     ? " active" : ""}`} onClick={() => setAdminTab("ferias")}>Férias</button>
+            <button className={`tab${adminTab === "agenda"     ? " active" : ""}`} onClick={() => setAdminTab("agenda")}>Agenda</button>
             <button className={`tab${adminTab === "calendario" ? " active" : ""}`} onClick={() => setAdminTab("calendario")}>Calendário</button>
             <button className={`tab${adminTab === "config"     ? " active" : ""}`} onClick={() => setAdminTab("config")}>Configurações</button>
           </div>
@@ -236,6 +238,7 @@ export default function App() {
 
         {adminTab === "banco"      && <BancoHoras />}
         {adminTab === "ferias"     && <RelatorioFerias />}
+        {adminTab === "agenda"     && <RelatorioAgenda />}
         {adminTab === "calendario" && <Calendario />}
         {adminTab === "aprovacoes" && <PendingApprovals employees={employees} onChanged={loadPending} />}
         {adminTab === "atividades" && <AdminActivity />}

@@ -1,6 +1,8 @@
 import { Document, Page, Text, View } from "@react-pdf/renderer";
 import type { MonthlyRecord, MonthlyReport, MonthlySummary } from "../../../types";
 import { BarChart, Donut, type Bar } from "./charts";
+import { CATEGORY_BG, CategoryLegend } from "./categoryStyle";
+import { type DayCtx, lookupDay } from "./dayContext";
 import {
   ABONO_LABELS, brDate, C, DOC_CODE, hm, hmSigned, MONTHS, periodLabel, STATUS_LABELS, styles, weekdayAbbr,
 } from "./theme";
@@ -211,14 +213,18 @@ function DashboardPage({ report, summaries, scope }: {
   );
 }
 
-function EmployeePage({ report, s }: { report: MonthlyReport; s: MonthlySummary }) {
+function EmployeePage({ report, s, dayCtx }: { report: MonthlyReport; s: MonthlySummary; dayCtx?: DayCtx }) {
   const period = periodLabel(report);
   const recs = report.records
     .filter((r) => r.employee_id === s.employee_id)
     .sort((a, b) => a.date.localeCompare(b.date));
   const weekly: Bar[] = s.weeks.map((w) => ({ label: w.label.split("–")[0], value: w.balance }));
 
+  const dayInfo = (rec: MonthlyRecord) => (dayCtx ? lookupDay(dayCtx, rec.employee_id, rec.date) : undefined);
+
   const bgFor = (rec: MonthlyRecord, idx: number): string | undefined => {
+    const day = dayInfo(rec);
+    if (day) return CATEGORY_BG[day.category];
     if (rec.status === "pendente") return C.warnBg;
     if (rec.status === "reprovado") return C.rejBg;
     return idx % 2 === 1 ? C.subtle : undefined;
@@ -248,7 +254,7 @@ function EmployeePage({ report, s }: { report: MonthlyReport; s: MonthlySummary 
             brDate(r.date), weekdayAbbr(r.date), r.day_type ?? "—",
             r.entry_time ?? "—", r.break_start ?? "—", r.break_end ?? "—", r.exit_time ?? "—",
             hm(r.worked_minutes), hm(r.standard_minutes), hmSigned(r.overtime_minutes),
-            r.abono_code ? ABONO_LABELS[r.abono_code] : "—", STATUS_LABELS[r.status] ?? r.status,
+            r.abono_code ? ABONO_LABELS[r.abono_code] : (dayInfo(r)?.label ?? "—"), STATUS_LABELS[r.status] ?? r.status,
           ]} />
         ))}
         <Row cols={DETAIL_COLS} bold cells={[
@@ -261,6 +267,7 @@ function EmployeePage({ report, s }: { report: MonthlyReport; s: MonthlySummary 
         Abonos: AB = Abono · AT = Atestado · VG = Viagem · FA = Falta · FE = Folga.
         Faltas: {s.faltas} · Atestados: {s.atestados} · Folgas: {s.folgas} · Extra 100%: {hm(s.extra100_minutes)} · Adicional noturno: {hm(s.night_bonus_minutes)}.
       </Text>
+      {dayCtx && <CategoryLegend />}
 
       <SignatureBlock />
 
@@ -269,14 +276,14 @@ function EmployeePage({ report, s }: { report: MonthlyReport; s: MonthlySummary 
   );
 }
 
-export function MonthlyDashboardPDF({ report, summaries, scope }: {
-  report: MonthlyReport; summaries: MonthlySummary[]; scope: string;
+export function MonthlyDashboardPDF({ report, summaries, scope, dayCtx }: {
+  report: MonthlyReport; summaries: MonthlySummary[]; scope: string; dayCtx?: DayCtx;
 }) {
   return (
     <Document title={`Banco de Horas ${MONTHS[report.month - 1]}/${report.year}`} author="Field Technology">
       <DashboardPage report={report} summaries={summaries} scope={scope} />
       {summaries.map((s) => (
-        <EmployeePage key={s.employee_id} report={report} s={s} />
+        <EmployeePage key={s.employee_id} report={report} s={s} dayCtx={dayCtx} />
       ))}
     </Document>
   );

@@ -18,6 +18,19 @@ export const C = {
   h1: "#00AEEF",
   h2: "#1E5A8C",
   h3: "#7BC8E8",
+  // Cores de CATEGORIA de dia (escala/férias/feriado/facultativo/evento) —
+  // espelham a paleta do calendário (features/calendar/shared.ts) para o
+  // PDF reconhecer visualmente o mesmo tipo de dia que a tela mostra.
+  escala: "#7C3AED",
+  escalaBg: "#EFE7FC",
+  leave: "#0D9488",
+  leaveBg: "#DFF3F1",
+  feriado: "#DC2626",
+  feriadoBg: "#FBE2E4",
+  facultativo: "#B45309",
+  facultativoBg: "#FEF3D7",
+  evento: "#2563EB",
+  eventoBg: "#E1EBFC",
 };
 
 export const DOC_CODE = "FPRESI-RH-0134 Rev.04";
