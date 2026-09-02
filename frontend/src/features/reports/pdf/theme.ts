@@ -112,7 +112,7 @@ export const styles = StyleSheet.create({
 
   // Painéis (gráficos)
   panelsRow: { flexDirection: "row", gap: 10, marginBottom: 10 },
-  panel: { flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 8, padding: 6, backgroundColor: C.white },
+  panel: { borderWidth: 1, borderColor: C.border, borderRadius: 8, padding: 6, backgroundColor: C.white },
   panelTitle: { fontFamily: "Helvetica-Bold", fontSize: 9, color: C.dark, marginBottom: 3 },
 
   // Tabelas
