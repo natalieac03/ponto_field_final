@@ -232,13 +232,21 @@ ao S3 automaticamente:
    aws sts get-caller-identity      # confirma que a role está ativa
    ```
 
-4. **Aponte o bucket** no `.env` (o `backup.sh` lê essa variável):
+4. **Aponte o bucket e defina a senha de cifra** no `.env` (o `backup.sh` lê essas variáveis):
    ```
    S3_BUCKET=pontofield-backups-fieldtech
+   BACKUP_PASSPHRASE=<gere com: python -c "import secrets;print(secrets.token_urlsafe(32))">
    ```
+   O banco guarda CPF em texto puro (a máscara é só na exibição/relatórios), então o
+   `backup.sh` cifra (`openssl aes-256-cbc`) o `.db.gz`/`.tar.gz` antes de enviar ao S3 —
+   sem `BACKUP_PASSPHRASE`, o script se recusa a mandar o backup pra fora do servidor.
+   Guarde essa senha em um cofre separado (ex.: gerenciador de senhas da equipe): sem ela,
+   o backup no S3 é irrecuperável.
 
-Pronto — o `backup.sh` passa a sincronizar `deploy/backups/` → `s3://<bucket>/pontofield-backups/`
-a cada execução (o cron do Passo 8 já cobre). Teste manual:
+Pronto — o `backup.sh` passa a sincronizar `deploy/backups/` (cifrado) → `s3://<bucket>/pontofield-backups/`
+a cada execução (o cron do Passo 8 já cobre). Para restaurar um backup baixado do S3, use
+`./restore.sh caminho/che_AAAAMMDD_HHMMSS.db.gz.enc` — o `restore.sh` decifra automaticamente
+usando `BACKUP_PASSPHRASE` do `.env`. Teste manual:
 ```bash
 cd ~/ponto-field/deploy && ./backup.sh
 aws s3 ls s3://pontofield-backups-fieldtech/pontofield-backups/

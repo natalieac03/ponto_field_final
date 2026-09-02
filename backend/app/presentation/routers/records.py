@@ -6,6 +6,7 @@ from app.application.dtos import (
     RecordCreate, RecordPatchBreak, RecordPatchExit, RecordPatchNote,
     RecordPatchTimes, RecordRead, RecordRequestEdit, RecordReview,
 )
+from app.application.errors import NotFoundError
 from app.application.identity import ensure_self_or_admin
 from app.domain.models import DailyRecord
 from app.presentation.deps import (
@@ -153,9 +154,13 @@ def delete_attachment(record_id: int, filename: str, records=Depends(record_repo
 
 
 @router.get("/attachments/{filename}")
-def download_attachment(filename: str, storage=Depends(attachment_storage),
-                        _identity: dict = Depends(require_auth_download)):
-    """Exige sessão válida (admin ou colaborador) — nome de arquivo sozinho não é segredo."""
+def download_attachment(filename: str, records=Depends(record_repo), storage=Depends(attachment_storage),
+                        identity: dict = Depends(require_auth_download)):
+    """Exige sessão válida e ser o próprio colaborador do registro (ou admin)."""
+    rec = uc.find_by_attachment(records, filename)
+    if rec is None:
+        raise NotFoundError("Anexo não encontrado.")
+    ensure_self_or_admin(identity, rec.employee_id)
     return FileResponse(storage.path(filename))
 
 

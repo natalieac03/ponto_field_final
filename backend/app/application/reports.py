@@ -396,6 +396,13 @@ def pending_punches(records: RecordRepository, employees: EmployeeRepository,
     for emp in employees.list_all():
         if not getattr(emp, "active", True):
             continue
+        # Só CLT tem obrigação de bater ponto. Os demais tipos de contrato
+        # (PJ, Estágio, Temporário) entram só pra registro de quadro e
+        # delegação de tarefas no calendário — não geram aviso de pendência.
+        # Colaborador sem tipo definido é tratado como CLT (comportamento padrão).
+        contract_type = getattr(emp, "contract_type", None)
+        if contract_type not in (None, "CLT"):
+            continue
         schedule = schedule_tuple(emp)
         for delta in range(1, days + 1):
             d = today - timedelta(days=delta)

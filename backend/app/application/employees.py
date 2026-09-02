@@ -233,6 +233,14 @@ def set_photo(employees: EmployeeRepository, storage: AttachmentStorage,
     return result
 
 
+def find_by_photo(employees: EmployeeRepository, filename: str) -> Employee | None:
+    """Colaborador dono da foto `filename`, ou None se nenhum a referencia."""
+    for emp in employees.list_all():
+        if emp.photo == filename:
+            return emp
+    return None
+
+
 def remove_photo(employees: EmployeeRepository, storage: AttachmentStorage,
                  employee_id: int) -> EmployeeRead:
     emp = _require(employees, employee_id)

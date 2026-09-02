@@ -4,6 +4,8 @@ retornam a identidade autenticada; a apresentação assina o token.
 Mensagens de falha são genéricas ("Credenciais inválidas") para não permitir
 enumeração de contas. Hashes legados são regravados em bcrypt no login (rehash).
 """
+import hmac
+
 from app.application.dtos import AuthAdminRequest, AuthEmployeeRequest
 from app.application.errors import PreconditionRequired, UnauthorizedError
 from app.application.passwords import hash_password, needs_rehash, verify_password
@@ -47,7 +49,7 @@ def authenticate_admin(data: AuthAdminRequest, master_password: str | None,
                 emp.pin_hash = hash_password(data.password)
                 employees.update(emp)
             return {"name": emp.name, "employee_id": emp.id, "pin_hash": emp.pin_hash}
-    if master_password and data.password.strip() == master_password:
+    if master_password and hmac.compare_digest(data.password.strip().encode(), master_password.encode()):
         # Senha-mestra (env) — sem hash persistido p/ carimbar; sessão só expira
         # naturalmente (TTL) ou trocando AUTH_SECRET/redeploy.
         return {"name": "Administrador", "employee_id": None, "pin_hash": None}

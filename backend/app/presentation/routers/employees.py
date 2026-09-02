@@ -7,6 +7,7 @@ from app.application.dtos import (
     EmployeeCreate, EmployeePasswordChange, EmployeePasswordSet, EmployeeProfileUpdate,
     EmployeePublicRead, EmployeeRead, EmployeeRename, WeeklySchedule,
 )
+from app.application.errors import NotFoundError
 from app.application.identity import ensure_self_or_admin
 from app.presentation.deps import (
     activity_repo, attachment_storage, auth_rate_limit, employee_repo, get_identity,
@@ -135,8 +136,12 @@ def delete_photo(employee_id: int, employees=Depends(employee_repo),
 
 
 @router.get("/photos/{filename}")
-def download_photo(filename: str, storage=Depends(attachment_storage),
-                   _identity: dict = Depends(require_auth_download)):
+def download_photo(filename: str, employees=Depends(employee_repo), storage=Depends(attachment_storage),
+                   identity: dict = Depends(require_auth_download)):
+    emp = uc.find_by_photo(employees, filename)
+    if emp is None:
+        raise NotFoundError("Foto não encontrada.")
+    ensure_self_or_admin(identity, emp.id)
     data, content_type = storage.read(filename)
     return Response(content=data, media_type=content_type,
                     headers={"Cache-Control": "private, max-age=86400"})

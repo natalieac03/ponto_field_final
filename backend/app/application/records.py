@@ -343,6 +343,14 @@ def remove_attachment(records: RecordRepository, storage: AttachmentStorage,
     return records.update(record)
 
 
+def find_by_attachment(records: RecordRepository, filename: str) -> DailyRecord | None:
+    """Registro dono do anexo `filename`, ou None se nenhum registro o referencia."""
+    for rec in records.list_all():
+        if filename in _attachments_list(rec):
+            return rec
+    return None
+
+
 def delete(records: RecordRepository, storage: AttachmentStorage, record_id: int) -> None:
     record = records.get(record_id)
     if not record:

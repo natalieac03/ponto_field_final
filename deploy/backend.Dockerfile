@@ -19,8 +19,15 @@ ENV DATABASE_URL=sqlite:////data/che.db \
     UPLOAD_DIR=/data/uploads
 RUN mkdir -p /data/uploads
 
+# Usuário sem privilégio para rodar o processo da API (o container não roda como root).
+RUN groupadd -r app && useradd -r -g app -u 1000 app
+
+COPY deploy/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
 EXPOSE 8000
 
 # Um worker uvicorn: SQLite serializa escritas; para a escala interna atual é o
 # mais seguro (evita contenção de lock). Escalar → Postgres (ver roadmap).
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# O entrypoint ajusta a dona de /data (volume do host) e derruba pro usuário "app".
+ENTRYPOINT ["/docker-entrypoint.sh"]
