@@ -134,9 +134,12 @@ export const styles = StyleSheet.create({
   },
 
   // Assinaturas
-  signRow: { flexDirection: "row", justifyContent: "space-around", gap: 44, marginTop: 26, marginBottom: 6 },
+  signRow: { flexDirection: "row", justifyContent: "space-around", gap: 44, marginTop: 12, marginBottom: 6 },
   signCell: { flex: 1, alignItems: "center" },
-  signLine: { alignSelf: "stretch", borderTopWidth: 1, borderTopColor: C.dark, marginHorizontal: 12, marginBottom: 4 },
+  // Altura própria com a borda embaixo (não em cima): abre um espaço em
+  // branco real acima da linha para a assinatura à caneta, em vez de a
+  // linha nascer colada ao texto acima.
+  signLine: { alignSelf: "stretch", height: 26, borderBottomWidth: 1, borderBottomColor: C.dark, marginHorizontal: 12, marginBottom: 4 },
   signRole: { fontFamily: "Helvetica-Bold", fontSize: 8.5, color: C.dark },
   signHint: { fontSize: 6.5, color: C.muted, marginTop: 1 },
 });
