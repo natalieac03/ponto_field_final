@@ -219,7 +219,6 @@ export interface Settings {
   std_minutes: number;
   h1_minutes: number;
   h2_minutes: number;
-  has_admin_password: boolean;
   company_cnpj: string | null;
   company_name: string | null;
   company_address: string | null;

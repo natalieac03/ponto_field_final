@@ -262,8 +262,6 @@ export const api = {
   getSettings: () => request<Settings>("/settings"),
   updateSettings: (data: SettingsUpdate) =>
     request<Settings>("/settings", { method: "PUT", body: JSON.stringify(data) }),
-  updateAdminPassword: (password: string) =>
-    request<Settings>("/settings/admin-password", { method: "PUT", body: JSON.stringify({ password }) }),
 
   getBankReport: () => request<BankReport>("/reports/bank"),
   getPendingPunches: (days = 7) => request<PendingPunch[]>(`/reports/pending-punches?days=${days}`),

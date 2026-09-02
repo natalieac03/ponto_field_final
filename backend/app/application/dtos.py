@@ -515,23 +515,11 @@ class ActivityLogRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class AdminPasswordUpdate(BaseModel):
-    password: str
-
-    @field_validator("password")
-    @classmethod
-    def pw_not_empty(cls, v: str) -> str:
-        if len(v.strip()) < 4:
-            raise ValueError("Senha deve ter pelo menos 4 caracteres")
-        return v.strip()
-
-
 class SettingsRead(BaseModel):
     id: int
     std_minutes: int
     h1_minutes: int = 480
     h2_minutes: int = 240
-    has_admin_password: bool
     company_cnpj: Optional[str] = None
     company_name: Optional[str] = None
     company_address: Optional[str] = None

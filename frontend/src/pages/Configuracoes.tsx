@@ -191,10 +191,8 @@ function ScheduleModal({ employee, defaultMinutes, onClose, onSaved }: ScheduleM
 export function Configuracoes({ employees, settings, onEmployeesChanged, onSettingsChanged }: Props) {
   const [empAlert, showEmpAlert] = useAutoDismissAlert(3500);
   const [settingsAlert, showSettingsAlert] = useAutoDismissAlert(3000);
-  const [adminPassAlert, showAdminPassAlert] = useAutoDismissAlert(3000);
   const [afdAlert, showAfdAlert] = useAutoDismissAlert(3000);
   const [recordCounts, setRecordCounts] = useState<Record<number, number>>({});
-  const [newAdminPass, setNewAdminPass] = useState("");
   const [scheduleEditing, setScheduleEditing] = useState<Employee | null>(null);
   const [formEditing, setFormEditing] = useState<Employee | null>(null);
   const [creating, setCreating] = useState(false);
@@ -281,14 +279,6 @@ export function Configuracoes({ employees, settings, onEmployeesChanged, onSetti
       await api.downloadAfd(afdStart, afdEnd);
     } catch (e: unknown) { showAfdAlert(e instanceof Error ? e.message : "Erro.", "error"); }
     finally { setAfdDownloading(false); }
-  };
-
-  const handleUpdateAdminPass = async () => {
-    if (newAdminPass.trim().length < 4) return showAdminPassAlert("Senha deve ter pelo menos 4 caracteres.", "error");
-    try {
-      await api.updateAdminPassword(newAdminPass.trim());
-      setNewAdminPass(""); showAdminPassAlert("Senha atualizada.", "success");
-    } catch (e: unknown) { showAdminPassAlert(e instanceof Error ? e.message : "Erro.", "error"); }
   };
 
   const hasCustomSchedule = (emp: Employee): boolean =>
@@ -503,24 +493,6 @@ export function Configuracoes({ employees, settings, onEmployeesChanged, onSetti
             </button>
           </div>
         </div>
-      </div>
-
-      <div className="card">
-        <div className="card-title">Senha do Administrador</div>
-        <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 14 }}>
-          Defina a senha pessoal do gestor. A senha-mestra de recuperação é configurada por variável de ambiente no servidor (não fica no código).
-          {settings?.has_admin_password
-            ? <span style={{ color: "var(--accent)", marginLeft: 8 }}>✓ senha personalizada ativa</span>
-            : <span style={{ color: "var(--accent2)", marginLeft: 8 }}>⚠ ainda sem senha pessoal — defina uma abaixo</span>}
-        </p>
-        <div className="row" style={{ alignItems: "flex-end" }}>
-          <div className="form-group" style={{ flex: 1, minWidth: 200 }}>
-            <label>Nova senha personalizada</label>
-            <input type="password" placeholder="Mínimo 4 caracteres" value={newAdminPass} onChange={e => setNewAdminPass(e.target.value)} />
-          </div>
-          <button className="btn btn-secondary" onClick={handleUpdateAdminPass}>Atualizar</button>
-        </div>
-        <Alert message={adminPassAlert?.msg ?? null} type={adminPassAlert?.type ?? "error"} />
       </div>
 
       {creating && (

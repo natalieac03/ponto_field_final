@@ -46,8 +46,7 @@ def _identity_from_token(token: str | None) -> dict:
         raise UnauthorizedError("Sessão inválida ou expirada.")
 
 
-def _check_not_revoked(payload: dict, employees: SqlEmployeeRepository,
-                       settings: SqlSettingsRepository) -> None:
+def _check_not_revoked(payload: dict, employees: SqlEmployeeRepository) -> None:
     """Revoga tokens emitidos antes da senha atual: o claim "sec" carimba uma
     impressão do hash de senha no momento do login (ver security.fingerprint).
     Se a senha mudou depois, a impressão não bate mais e a sessão antiga cai —
@@ -58,30 +57,26 @@ def _check_not_revoked(payload: dict, employees: SqlEmployeeRepository,
     sec = payload.get("sec")
     if not sec:
         return
-    role, sub = payload.get("role"), payload.get("sub")
+    sub = payload.get("sub")
     current_hash = None
     if isinstance(sub, int):
         emp = employees.get(sub)
         current_hash = emp.pin_hash if emp else None
-    elif role == "admin":
-        current_hash = settings.get_or_create().admin_pin_hash
     if not current_hash or fingerprint(current_hash) != sec:
         raise UnauthorizedError("Sessão inválida ou expirada.")
 
 
 def get_identity(authorization: str | None = Header(default=None),
-                 employees: SqlEmployeeRepository = Depends(employee_repo),
-                 settings: SqlSettingsRepository = Depends(settings_repo)) -> dict:
+                 employees: SqlEmployeeRepository = Depends(employee_repo)) -> dict:
     if not authorization or not authorization.lower().startswith("bearer "):
         raise UnauthorizedError("Não autenticado.")
     payload = _identity_from_token(authorization[7:].strip())
-    _check_not_revoked(payload, employees, settings)
+    _check_not_revoked(payload, employees)
     return payload
 
 
 def get_identity_flexible(request: Request, authorization: str | None = Header(default=None),
-                          employees: SqlEmployeeRepository = Depends(employee_repo),
-                          settings: SqlSettingsRepository = Depends(settings_repo)) -> dict:
+                          employees: SqlEmployeeRepository = Depends(employee_repo)) -> dict:
     """Como get_identity, mas também aceita o token via query string (?t=).
 
     Usado só nas rotas de download de foto/anexo, carregadas pelo browser via
@@ -94,7 +89,7 @@ def get_identity_flexible(request: Request, authorization: str | None = Header(d
     else:
         token = request.query_params.get("t")
     payload = _identity_from_token(token)
-    _check_not_revoked(payload, employees, settings)
+    _check_not_revoked(payload, employees)
     return payload
 
 

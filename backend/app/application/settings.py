@@ -1,6 +1,5 @@
 """Casos de uso de configurações."""
-from app.application.dtos import AdminPasswordUpdate, SettingsRead, SettingsUpdate
-from app.application.passwords import hash_pin
+from app.application.dtos import SettingsRead, SettingsUpdate
 from app.application.ports import SettingsRepository
 from app.domain.models import Settings
 
@@ -8,7 +7,7 @@ from app.domain.models import Settings
 def to_read(s: Settings) -> SettingsRead:
     return SettingsRead(
         id=s.id, std_minutes=s.std_minutes, h1_minutes=s.h1_minutes,
-        h2_minutes=s.h2_minutes, has_admin_password=s.admin_pin_hash is not None,
+        h2_minutes=s.h2_minutes,
         company_cnpj=s.company_cnpj, company_name=s.company_name,
         company_address=s.company_address, rep_number=s.rep_number,
     )
@@ -38,10 +37,4 @@ def update(settings: SettingsRepository, data: SettingsUpdate) -> SettingsRead:
         s.company_address = data.company_address
     if data.rep_number is not None:
         s.rep_number = data.rep_number
-    return to_read(settings.update(s))
-
-
-def update_admin_password(settings: SettingsRepository, data: AdminPasswordUpdate) -> SettingsRead:
-    s = settings.get_or_create()
-    s.admin_pin_hash = hash_pin(data.password)
     return to_read(settings.update(s))

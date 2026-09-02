@@ -6,8 +6,8 @@ enumeração de contas. Hashes legados são regravados em bcrypt no login (rehas
 """
 from app.application.dtos import AuthAdminRequest, AuthEmployeeRequest
 from app.application.errors import PreconditionRequired, UnauthorizedError
-from app.application.passwords import hash_pin, hash_password, needs_rehash, verify_password, verify_pin
-from app.application.ports import EmployeeRepository, SettingsRepository
+from app.application.passwords import hash_password, needs_rehash, verify_password
+from app.application.ports import EmployeeRepository
 
 _INVALID = "Credenciais inválidas."
 
@@ -30,33 +30,25 @@ def authenticate_employee(employees: EmployeeRepository, data: AuthEmployeeReque
     return {"id": emp.id, "name": emp.name, "pin_hash": emp.pin_hash}
 
 
-def authenticate_admin(settings: SettingsRepository, data: AuthAdminRequest,
-                       master_password: str | None,
-                       employees: EmployeeRepository | None = None) -> dict:
+def authenticate_admin(data: AuthAdminRequest, master_password: str | None,
+                       employees: EmployeeRepository) -> dict:
     """Identidade do gestor autenticado: {'name', 'employee_id'|None}.
 
     Ordem: 1) colaborador com is_admin (estrela) usando a PRÓPRIA senha —
     vem primeiro para a trilha de auditoria registrar o nome real de quem entrou;
-    2) senha-mestra (env); 3) senha personalizada do painel.
+    2) senha-mestra (env) — mecanismo de bootstrap/recuperação controlado fora
+    da aplicação (variável de ambiente do servidor), não redefinível por ela.
     """
-    if employees is not None:
-        for emp in employees.list_all():
-            if not getattr(emp, "active", True):
-                continue
-            if emp.is_admin and emp.pin_hash and verify_password(data.password, emp.pin_hash):
-                if needs_rehash(emp.pin_hash):
-                    emp.pin_hash = hash_password(data.password)
-                    employees.update(emp)
-                return {"name": emp.name, "employee_id": emp.id, "pin_hash": emp.pin_hash}
+    for emp in employees.list_all():
+        if not getattr(emp, "active", True):
+            continue
+        if emp.is_admin and emp.pin_hash and verify_password(data.password, emp.pin_hash):
+            if needs_rehash(emp.pin_hash):
+                emp.pin_hash = hash_password(data.password)
+                employees.update(emp)
+            return {"name": emp.name, "employee_id": emp.id, "pin_hash": emp.pin_hash}
     if master_password and data.password.strip() == master_password:
         # Senha-mestra (env) — sem hash persistido p/ carimbar; sessão só expira
-        # naturalmente (TTL) ou trocando AUTH_SECRET/redeploy. É um mecanismo de
-        # bootstrap/recuperação, não o login padrão do dia a dia.
+        # naturalmente (TTL) ou trocando AUTH_SECRET/redeploy.
         return {"name": "Administrador", "employee_id": None, "pin_hash": None}
-    s = settings.get_or_create()
-    if s.admin_pin_hash and verify_pin(data.password, s.admin_pin_hash):
-        if needs_rehash(s.admin_pin_hash):
-            s.admin_pin_hash = hash_pin(data.password)
-            settings.update(s)
-        return {"name": "Administrador", "employee_id": None, "pin_hash": s.admin_pin_hash}
     raise UnauthorizedError(_INVALID)

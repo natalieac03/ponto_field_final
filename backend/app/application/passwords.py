@@ -45,13 +45,3 @@ def verify_password(plain: str, hashed: str) -> bool:
 def needs_rehash(hashed: str) -> bool:
     """True quando o hash não está no esquema atual (bcrypt) e deve ser regravado."""
     return not (hashed and _is_bcrypt(hashed))
-
-
-# PIN usa o mesmo esquema (strip para tolerar espaços). Mantido por compatibilidade
-# com os chamadores existentes (senha do admin).
-def hash_pin(pin: str) -> str:
-    return hash_password(pin.strip())
-
-
-def verify_pin(plain: str, hashed: str) -> bool:
-    return verify_password(plain.strip(), hashed)
