@@ -5,7 +5,7 @@ import { CATEGORY_BG, CategoryLegend } from "./categoryStyle";
 import { type DayCtx, lookupDay } from "./dayContext";
 import { Brand, type Col, Footer, Kpi, Row, SignatureBlock, TableHead } from "./PdfLayout";
 import {
-  ABONO_LABELS, brDate, C, hm, hmSigned, MONTHS, periodLabel, STATUS_LABELS, styles, weekdayAbbr,
+  brDate, C, hm, hmSigned, MONTHS, periodLabel, STATUS_ABBR, styles, weekdayAbbr,
 } from "./theme";
 
 /* ── Agrega semanas de vários colaboradores por número de semana ── */
@@ -44,9 +44,9 @@ const DETAIL_COLS: Col[] = [
   { label: "Saída", width: 40, align: "center" },
   { label: "Trab.", width: 40, align: "right" },
   { label: "Ref.", width: 38, align: "right" },
-  { label: "Saldo", width: 44, align: "right" },
-  { label: "Abono", width: 48, align: "center" },
-  { label: "Status", width: 55, align: "center" },
+  { label: "Saldo", width: 52, align: "right" },
+  { label: "Abono", width: 28, align: "center" },
+  { label: "Sit.", width: 22, align: "center" },
 ];
 
 function DashboardPage({ report, summaries, scope }: {
@@ -169,9 +169,9 @@ function EmployeePage({ report, s, dayCtx }: { report: MonthlyReport; s: Monthly
         <Kpi label="Dias (Ú/S/D)" value={`${s.days_h1}/${s.days_h2}/${s.days_h3}`} />
       </View>
 
-      <View style={[styles.panel, { marginBottom: 12 }]}>
+      <View style={[styles.panel, { marginBottom: 8 }]}>
         <Text style={styles.panelTitle}>Saldo por semana</Text>
-        <BarChart data={weekly} width={510} height={96} />
+        <BarChart data={weekly} width={510} height={62} />
       </View>
 
       <Text style={styles.sectionTitle}>Detalhamento diário</Text>
@@ -182,7 +182,7 @@ function EmployeePage({ report, s, dayCtx }: { report: MonthlyReport; s: Monthly
             brDate(r.date), weekdayAbbr(r.date), r.day_type ?? "—",
             r.entry_time ?? "—", r.break_start ?? "—", r.break_end ?? "—", r.exit_time ?? "—",
             hm(r.worked_minutes), hm(r.standard_minutes), hmSigned(r.overtime_minutes),
-            r.abono_code ? ABONO_LABELS[r.abono_code] : (dayInfo(r)?.label ?? "—"), STATUS_LABELS[r.status] ?? r.status,
+            r.abono_code ?? (dayInfo(r)?.label ?? "—"), STATUS_ABBR[r.status] ?? r.status,
           ]} />
         ))}
         <Row cols={DETAIL_COLS} bold cells={[
@@ -192,7 +192,7 @@ function EmployeePage({ report, s, dayCtx }: { report: MonthlyReport; s: Monthly
       </View>
 
       <Text style={styles.legend}>
-        Abonos: AB = Abono · AT = Atestado · VG = Viagem · FA = Falta · FE = Folga.
+        Abonos: AB = Abono · AT = Atestado · VG = Viagem · FA = Falta · FE = Folga. Situação: A = Aprovado · P = Pendente · R = Reprovado.
         Faltas: {s.faltas} · Atestados: {s.atestados} · Folgas: {s.folgas} · Extra 100%: {hm(s.extra100_minutes)} · Adicional noturno: {hm(s.night_bonus_minutes)}.
       </Text>
       {dayCtx && <CategoryLegend />}

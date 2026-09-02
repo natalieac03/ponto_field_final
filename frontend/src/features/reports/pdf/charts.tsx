@@ -1,5 +1,5 @@
 import { Svg, Rect, Line, Path, Text as SvgText, Circle, G } from "@react-pdf/renderer";
-import { C } from "./theme";
+import { C, hmSigned } from "./theme";
 
 /* ── Barras de saldo por semana (valores com sinal) ── */
 export interface Bar { label: string; value: number }
@@ -19,11 +19,6 @@ export function BarChart({ data, width, height }: { data: Bar[]; width: number; 
   const slot = width / n;
   const barW = Math.min(26, slot * 0.5);
 
-  const fmt = (m: number) => {
-    const a = Math.abs(m);
-    return `${m < 0 ? "−" : "+"}${Math.floor(a / 60)}h${String(a % 60).padStart(2, "0")}`;
-  };
-
   return (
     <Svg width={width} height={height}>
       <Line x1={0} y1={zeroY} x2={width} y2={zeroY} stroke={C.border} strokeWidth={1} />
@@ -39,7 +34,7 @@ export function BarChart({ data, width, height }: { data: Bar[]; width: number; 
               x={cx} y={d.value >= 0 ? Math.max(y - 3, 7) : Math.min(y + h + 8, plotBottom - 2)}
               style={{ fontSize: 6.5, fontFamily: "Helvetica-Bold" }} fill={color} textAnchor="middle"
             >
-              {fmt(d.value)}
+              {hmSigned(d.value)}
             </SvgText>
             <SvgText
               x={cx} y={height - 2}

@@ -46,16 +46,24 @@ export const ABONO_LABELS: Record<string, string> = {
 export const STATUS_LABELS: Record<string, string> = {
   aprovado: "Aprovado", pendente: "Pendente", reprovado: "Reprovado",
 };
+export const STATUS_ABBR: Record<string, string> = {
+  aprovado: "A", pendente: "P", reprovado: "R",
+};
 
 export const hm = (m: number | null | undefined): string => {
   if (m == null) return "—";
   const a = Math.abs(m);
   return `${Math.floor(a / 60)}h${String(a % 60).padStart(2, "0")}`;
 };
+// Saldo negativo vai entre parênteses (não só em vermelho) para continuar
+// legível em impressão preto-e-branco; usa hífen ASCII — o sinal Unicode "−"
+// não tem largura de glifo na fonte Helvetica padrão do react-pdf e fazia o
+// texto seguinte sobrepor o número.
 export const hmSigned = (m: number | null | undefined): string => {
   if (m == null) return "—";
   const a = Math.abs(m);
-  return `${m < 0 ? "−" : "+"}${Math.floor(a / 60)}h${String(a % 60).padStart(2, "0")}`;
+  const s = `${Math.floor(a / 60)}h${String(a % 60).padStart(2, "0")}`;
+  return m < 0 ? `(${s})` : `+${s}`;
 };
 export const brDate = (iso: string): string => {
   const [y, mo, d] = iso.split("-");
@@ -94,29 +102,29 @@ export const styles = StyleSheet.create({
   sectionTitle: { fontFamily: "Helvetica-Bold", fontSize: 10.5, color: C.dark, marginBottom: 6, marginTop: 4 },
 
   // KPI cards
-  kpiRow: { flexDirection: "row", gap: 8, marginBottom: 14 },
+  kpiRow: { flexDirection: "row", gap: 8, marginBottom: 10 },
   kpiCard: {
     flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 8,
-    paddingVertical: 10, paddingHorizontal: 10, backgroundColor: C.white,
+    paddingVertical: 6, paddingHorizontal: 10, backgroundColor: C.white,
   },
   kpiLabel: { fontSize: 7.5, color: C.muted, textTransform: "uppercase", letterSpacing: 0.4 },
-  kpiValue: { fontFamily: "Helvetica-Bold", fontSize: 17, marginTop: 3 },
+  kpiValue: { fontFamily: "Helvetica-Bold", fontSize: 15, marginTop: 2 },
 
   // Painéis (gráficos)
-  panelsRow: { flexDirection: "row", gap: 10, marginBottom: 14 },
-  panel: { flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 8, padding: 10, backgroundColor: C.white },
-  panelTitle: { fontFamily: "Helvetica-Bold", fontSize: 9, color: C.dark, marginBottom: 8 },
+  panelsRow: { flexDirection: "row", gap: 10, marginBottom: 10 },
+  panel: { flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 8, padding: 8, backgroundColor: C.white },
+  panelTitle: { fontFamily: "Helvetica-Bold", fontSize: 9, color: C.dark, marginBottom: 4 },
 
   // Tabelas
   table: { borderWidth: 1, borderColor: C.border, borderRadius: 6, overflow: "hidden" },
   tHead: { flexDirection: "row", backgroundColor: C.blue },
-  tHeadCell: { color: C.white, fontFamily: "Helvetica-Bold", fontSize: 7.5, paddingVertical: 5, paddingHorizontal: 4 },
+  tHeadCell: { color: C.white, fontFamily: "Helvetica-Bold", fontSize: 7.5, paddingVertical: 3, paddingHorizontal: 4, lineHeight: 1.1 },
   tRow: { flexDirection: "row", borderTopWidth: 1, borderTopColor: C.border },
-  tCell: { fontSize: 7.8, paddingVertical: 4, paddingHorizontal: 4, color: C.dark },
+  tCell: { fontSize: 7.6, paddingVertical: 2, paddingHorizontal: 4, color: C.dark, lineHeight: 1.1 },
   tTotal: { flexDirection: "row", backgroundColor: C.total, borderTopWidth: 1, borderTopColor: C.border },
-  tTotalCell: { fontFamily: "Helvetica-Bold", fontSize: 7.8, paddingVertical: 5, paddingHorizontal: 4, color: C.dark },
+  tTotalCell: { fontFamily: "Helvetica-Bold", fontSize: 7.6, paddingVertical: 3, paddingHorizontal: 4, color: C.dark, lineHeight: 1.1 },
 
-  legend: { fontSize: 7, color: C.muted, marginTop: 8 },
+  legend: { fontSize: 7, color: C.muted, marginTop: 5 },
 
   footer: {
     position: "absolute", bottom: 20, left: 34, right: 34,
@@ -126,7 +134,7 @@ export const styles = StyleSheet.create({
   },
 
   // Assinaturas
-  signRow: { flexDirection: "row", justifyContent: "space-around", gap: 44, marginTop: 34, marginBottom: 6 },
+  signRow: { flexDirection: "row", justifyContent: "space-around", gap: 44, marginTop: 16, marginBottom: 4 },
   signCell: { flex: 1, alignItems: "center" },
   signLine: { alignSelf: "stretch", borderTopWidth: 1, borderTopColor: C.dark, marginHorizontal: 12, marginBottom: 4 },
   signRole: { fontFamily: "Helvetica-Bold", fontSize: 8.5, color: C.dark },
