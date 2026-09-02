@@ -22,8 +22,12 @@ function normalize(s: string): string {
     .trim();
 }
 
-function ChoiceIcon({ src, alt }: { src: string; alt: string }) {
-  return <img src={src} alt={alt} style={{ width: 48, height: 48, objectFit: "contain", marginBottom: 12 }} />;
+function ChoiceIcon({ src, alt, tint }: { src: string; alt: string; tint: string }) {
+  return (
+    <div className="landing-choice-icon" style={{ background: tint }}>
+      <img src={src} alt={alt} />
+    </div>
+  );
 }
 
 export function Landing({ onEmployeeLogin, onAdminLogin }: Props) {
@@ -154,8 +158,8 @@ export function Landing({ onEmployeeLogin, onAdminLogin }: Props) {
   };
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "var(--bg)", padding: 16 }}>
-      <div style={{ textAlign: "center", marginBottom: 28 }}>
+    <div className="landing-page">
+      <div className="landing-brand">
         <img
           src={landingTopImageUrl}
           alt=""
@@ -169,7 +173,7 @@ export function Landing({ onEmployeeLogin, onAdminLogin }: Props) {
       </div>
 
       {view === "choose" && (
-        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", justifyContent: "center" }}>
+        <div className="landing-choices">
           <button
             ref={el => { chooseRefs.current[0] = el; }}
             onClick={() => { setView("employee"); clearError(); }}
@@ -177,15 +181,11 @@ export function Landing({ onEmployeeLogin, onAdminLogin }: Props) {
               if (e.key === "ArrowRight") { e.preventDefault(); chooseRefs.current[1]?.focus(); }
               if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setView("employee"); clearError(); }
             }}
-            onFocus={e => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.background = "rgba(37,99,235,0.05)"; }}
-            onBlur={e => { e.currentTarget.style.borderColor = "var(--border2)"; e.currentTarget.style.background = "var(--surface)"; }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.background = "rgba(37,99,235,0.05)"; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border2)"; e.currentTarget.style.background = "var(--surface)"; }}
-            style={{ width: 200, padding: "32px 24px", borderRadius: 16, cursor: "pointer", background: "var(--surface)", border: "1px solid var(--border2)", color: "var(--text)", textAlign: "center", transition: "border-color 0.15s, background 0.15s", fontFamily: "var(--font)" }}
+            className="landing-choice"
           >
-            <ChoiceIcon src={employeeIconUrl} alt="Colaborador" />
-            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6, color: "var(--accent)" }}>Colaborador</div>
-            <div style={{ fontSize: 12, color: "var(--muted)" }}>Bater ponto e ver meus registros</div>
+            <ChoiceIcon src={employeeIconUrl} alt="Colaborador" tint="rgba(37,99,235,0.1)" />
+            <div className="landing-choice-title" style={{ color: "var(--accent)" }}>Colaborador</div>
+            <div className="landing-choice-sub">Bater ponto e ver meus registros</div>
           </button>
 
           <button
@@ -195,25 +195,21 @@ export function Landing({ onEmployeeLogin, onAdminLogin }: Props) {
               if (e.key === "ArrowLeft") { e.preventDefault(); chooseRefs.current[0]?.focus(); }
               if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setView("admin"); clearError(); }
             }}
-            onFocus={e => { e.currentTarget.style.borderColor = "var(--accent2)"; e.currentTarget.style.background = "rgba(29,78,216,0.05)"; }}
-            onBlur={e => { e.currentTarget.style.borderColor = "var(--border2)"; e.currentTarget.style.background = "var(--surface)"; }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--accent2)"; e.currentTarget.style.background = "rgba(29,78,216,0.05)"; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border2)"; e.currentTarget.style.background = "var(--surface)"; }}
-            style={{ width: 200, padding: "32px 24px", borderRadius: 16, cursor: "pointer", background: "var(--surface)", border: "1px solid var(--border2)", color: "var(--text)", textAlign: "center", transition: "border-color 0.15s, background 0.15s", fontFamily: "var(--font)" }}
+            className="landing-choice"
           >
-            <ChoiceIcon src={adminIconUrl} alt="Administrador" />
-            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6, color: "var(--accent2)" }}>Administrador</div>
-            <div style={{ fontSize: 12, color: "var(--muted)" }}>Banco de horas e relatórios</div>
+            <ChoiceIcon src={adminIconUrl} alt="Administrador" tint="rgba(22,63,149,0.1)" />
+            <div className="landing-choice-title" style={{ color: "var(--accent2)" }}>Administrador</div>
+            <div className="landing-choice-sub">Banco de horas e relatórios</div>
           </button>
         </div>
       )}
 
       {view === "employee" && (
-        <div style={{ width: "100%", maxWidth: 380 }}>
-          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: 28 }}>
+        <div className="landing-panel" style={{ maxWidth: 380 }}>
+          <div className="landing-card">
             {!selectedEmp ? (
               <>
-                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 16, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 1 }}>
+                <div className="landing-eyebrow">
                   Quem é você?
                 </div>
 
@@ -237,7 +233,8 @@ export function Landing({ onEmployeeLogin, onAdminLogin }: Props) {
                   {search && (
                     <button
                       onClick={() => setSearch("")}
-                      style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 14, fontFamily: "var(--font)" }}
+                      className="landing-icon-btn"
+                      style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 14 }}
                       aria-label="Limpar"
                     >✕</button>
                   )}
@@ -255,24 +252,7 @@ export function Landing({ onEmployeeLogin, onAdminLogin }: Props) {
                       <button
                         key={emp.id}
                         onClick={() => selectEmployee(emp)}
-                        style={{
-                          padding: "11px 14px",
-                          borderRadius: 10,
-                          cursor: "pointer",
-                          background: "var(--surface2)",
-                          border: "1px solid var(--border2)",
-                          color: "var(--text)",
-                          fontFamily: "var(--font)",
-                          fontSize: 14,
-                          fontWeight: 500,
-                          textAlign: "left",
-                          transition: "border-color 0.12s, background 0.12s",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                        }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.background = "rgba(37,99,235,0.06)"; }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border2)"; e.currentTarget.style.background = "var(--surface2)"; }}
+                        className="landing-emp-item"
                       >
                         <span>{emp.name}</span>
                         {!emp.has_password && <span style={{ fontSize: 10, color: "var(--accent2)", fontWeight: 600 }}>1º acesso</span>}
@@ -289,7 +269,7 @@ export function Landing({ onEmployeeLogin, onAdminLogin }: Props) {
                   <div style={{ fontSize: 12, color: "var(--accent2)", marginTop: 4, fontWeight: 600 }}>
                     👋 Primeiro acesso — crie sua senha
                   </div>
-                  <button onClick={backToList} style={{ fontSize: 12, color: "var(--muted)", background: "none", border: "none", cursor: "pointer", marginTop: 6, fontFamily: "var(--font)" }}>← trocar</button>
+                  <button onClick={backToList} className="landing-link" style={{ marginTop: 6 }}>← trocar</button>
                 </div>
 
                 {/* Form com autocomplete — usuário invisível p/ o navegador associar */}
@@ -326,14 +306,8 @@ export function Landing({ onEmployeeLogin, onAdminLogin }: Props) {
                 <button
                   onClick={handleSetPassword}
                   disabled={loading || newPassword.length < 4 || newPassword !== confirmPassword}
-                  style={{
-                    width: "100%", padding: "12px", borderRadius: 10,
-                    background: (newPassword.length >= 4 && newPassword === confirmPassword) ? "var(--btn-solid)" : "var(--surface2)",
-                    color: (newPassword.length >= 4 && newPassword === confirmPassword) ? "#ffffff" : "var(--muted)",
-                    border: "none", fontWeight: 600, fontSize: 14,
-                    cursor: (newPassword.length >= 4 && newPassword === confirmPassword) ? "pointer" : "not-allowed",
-                    fontFamily: "var(--font)", transition: "background 0.15s"
-                  }}
+                  className="btn btn-primary"
+                  style={{ width: "100%", padding: "12px" }}
                 >
                   {loading ? "Criando…" : "Criar senha e entrar →"}
                 </button>
@@ -342,7 +316,7 @@ export function Landing({ onEmployeeLogin, onAdminLogin }: Props) {
               <>
                 <div style={{ textAlign: "center", marginBottom: 20 }}>
                   <div style={{ fontSize: 16, fontWeight: 600 }}>{selectedEmp.name}</div>
-                  <button onClick={backToList} style={{ fontSize: 12, color: "var(--muted)", background: "none", border: "none", cursor: "pointer", marginTop: 4, fontFamily: "var(--font)" }}>← trocar</button>
+                  <button onClick={backToList} className="landing-link" style={{ marginTop: 4 }}>← trocar</button>
                 </div>
 
                 {/* Form layout autocomplete-friendly */}
@@ -364,7 +338,8 @@ export function Landing({ onEmployeeLogin, onAdminLogin }: Props) {
                     />
                     <button
                       onClick={() => setShowPassword(v => !v)}
-                      style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--muted)", fontSize: 14, fontFamily: "var(--font)" }}
+                      className="landing-icon-btn"
+                      style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 14 }}
                       aria-label="Mostrar/esconder senha"
                     >
                       {showPassword ? "🙈" : "👁"}
@@ -377,14 +352,8 @@ export function Landing({ onEmployeeLogin, onAdminLogin }: Props) {
                 <button
                   onClick={handleEmployeeLogin}
                   disabled={loading || password.length < 4}
-                  style={{
-                    width: "100%", padding: "12px", borderRadius: 10,
-                    background: password.length >= 4 ? "var(--btn-solid)" : "var(--surface2)",
-                    color: password.length >= 4 ? "#ffffff" : "var(--muted)",
-                    border: "none", fontWeight: 600, fontSize: 14,
-                    cursor: password.length >= 4 ? "pointer" : "not-allowed",
-                    fontFamily: "var(--font)", transition: "background 0.15s"
-                  }}
+                  className="btn btn-primary"
+                  style={{ width: "100%", padding: "12px" }}
                 >
                   {loading ? "Verificando…" : "Entrar →"}
                 </button>
@@ -394,7 +363,8 @@ export function Landing({ onEmployeeLogin, onAdminLogin }: Props) {
 
           <button
             onClick={() => { setView("choose"); backToList(); setSearch(""); }}
-            style={{ marginTop: 16, background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 13, fontFamily: "var(--font)" }}
+            className="landing-link"
+            style={{ marginTop: 16 }}
           >
             ← voltar
           </button>
@@ -402,9 +372,9 @@ export function Landing({ onEmployeeLogin, onAdminLogin }: Props) {
       )}
 
       {view === "admin" && (
-        <div style={{ width: "100%", maxWidth: 340 }}>
-          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: 28 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 20, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 1 }}>Área Administrativa</div>
+        <div className="landing-panel" style={{ maxWidth: 340 }}>
+          <div className="landing-card">
+            <div className="landing-eyebrow">Área Administrativa</div>
             <div className="form-group" style={{ marginBottom: 16 }}>
               <label>Senha</label>
               <div style={{ position: "relative" }}>
@@ -418,14 +388,21 @@ export function Landing({ onEmployeeLogin, onAdminLogin }: Props) {
                   autoFocus
                   style={{ paddingRight: 40 }}
                 />
-                <button onClick={() => setShowAdminPass(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--muted)", fontSize: 14, fontFamily: "var(--font)" }}>{showAdminPass ? "🙈" : "👁"}</button>
+                <button
+                  onClick={() => setShowAdminPass(v => !v)}
+                  className="landing-icon-btn"
+                  style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 14 }}
+                  aria-label="Mostrar/esconder senha"
+                >{showAdminPass ? "🙈" : "👁"}</button>
               </div>
             </div>
             {error && <div style={{ fontSize: 12, color: "var(--danger)", marginBottom: 10 }}>{error}</div>}
-            <button onClick={handleAdminLogin} disabled={loading} style={{ width: "100%", padding: "12px", borderRadius: 10, background: "var(--btn-solid)", color: "#ffffff", border: "none", fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "var(--font)" }}>{loading ? "Verificando…" : "Acessar Painel →"}</button>
+            <button onClick={handleAdminLogin} disabled={loading} className="btn btn-primary" style={{ width: "100%", padding: "12px" }}>
+              {loading ? "Verificando…" : "Acessar Painel →"}
+            </button>
           </div>
 
-          <button onClick={() => { setView("choose"); setAdminPass(""); clearError(); }} style={{ marginTop: 16, background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 13, fontFamily: "var(--font)" }}>← voltar</button>
+          <button onClick={() => { setView("choose"); setAdminPass(""); clearError(); }} className="landing-link" style={{ marginTop: 16 }}>← voltar</button>
         </div>
       )}
     </div>
