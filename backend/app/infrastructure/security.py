@@ -20,6 +20,17 @@ if not _secret:
             "com um valor aleatório longo (ex.: `python -c \"import secrets;print(secrets.token_urlsafe(48))\"`)."
         )
     _secret = "dev-insecure-secret-troque-em-producao"  # somente desenvolvimento
+    # Aviso alto-contraste: se o deploy subir sem APP_ENV=production por engano
+    # (fora do docker-compose.yml, que já fixa essa env), este é o único sinal
+    # de que a instância está rodando com um segredo público e conhecido —
+    # qualquer um poderia forjar um token de admin.
+    print(
+        "\n" + "!" * 70 +
+        "\n!! AUTH_SECRET não definido — usando segredo de DESENVOLVIMENTO,\n"
+        "!! PÚBLICO e CONHECIDO. Isso NUNCA deve rodar em produção.\n"
+        "!! Se isto é produção, defina APP_ENV=production e AUTH_SECRET já.\n" +
+        "!" * 70 + "\n"
+    )
 SECRET = _secret.encode("utf-8")
 TOKEN_TTL_SECONDS = int(os.getenv("AUTH_TTL_SECONDS", str(12 * 3600)))
 
@@ -36,11 +47,22 @@ def _sign(body_b64: str) -> str:
     return _b64e(hmac.new(SECRET, body_b64.encode("ascii"), hashlib.sha256).digest())
 
 
-def create_token(role: str, sub, name: str | None = None, ttl: int | None = None) -> str:
+def fingerprint(secret: str) -> str:
+    """Impressão curta e não-reversível de um hash de senha, p/ carimbar o token
+    (claim "sec") sem expor o hash em si num payload que o próprio cliente pode
+    decodificar. Trocar a senha muda o hash → muda a impressão → tokens antigos
+    param de bater na checagem de revogação (ver deps.py)."""
+    return hashlib.sha256(secret.encode("utf-8")).hexdigest()[:16]
+
+
+def create_token(role: str, sub, name: str | None = None, ttl: int | None = None,
+                 sec: str | None = None) -> str:
     payload = {
         "role": role, "sub": sub, "name": name,
         "exp": int(time.time()) + (ttl if ttl is not None else TOKEN_TTL_SECONDS),
     }
+    if sec:
+        payload["sec"] = sec
     body = _b64e(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
     return f"{body}.{_sign(body)}"
 

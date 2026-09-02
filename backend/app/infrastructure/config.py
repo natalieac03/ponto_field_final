@@ -25,3 +25,13 @@ if not _master and not IS_PROD:
 MASTER_ADMIN_PASSWORD = _master  # None em produção se a env não for definida
 
 CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",") if o.strip()]
+
+_invalid_origins = [o for o in CORS_ORIGINS if o == "*" or not (o.startswith("http://") or o.startswith("https://"))]
+if _invalid_origins:
+    msg = (
+        f"CORS_ORIGINS inválido: {_invalid_origins}. Cada origem deve ser uma URL "
+        "completa (http:// ou https://); curinga (\"*\") não é permitido."
+    )
+    if IS_PROD:
+        raise RuntimeError(msg)
+    print(f"[config] AVISO: {msg}")

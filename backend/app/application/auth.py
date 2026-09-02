@@ -27,7 +27,7 @@ def authenticate_employee(employees: EmployeeRepository, data: AuthEmployeeReque
     if needs_rehash(emp.pin_hash):
         emp.pin_hash = hash_password(data.password)
         employees.update(emp)
-    return {"id": emp.id, "name": emp.name}
+    return {"id": emp.id, "name": emp.name, "pin_hash": emp.pin_hash}
 
 
 def authenticate_admin(settings: SettingsRepository, data: AuthAdminRequest,
@@ -47,13 +47,16 @@ def authenticate_admin(settings: SettingsRepository, data: AuthAdminRequest,
                 if needs_rehash(emp.pin_hash):
                     emp.pin_hash = hash_password(data.password)
                     employees.update(emp)
-                return {"name": emp.name, "employee_id": emp.id}
+                return {"name": emp.name, "employee_id": emp.id, "pin_hash": emp.pin_hash}
     if master_password and data.password.strip() == master_password:
-        return {"name": "Administrador", "employee_id": None}
+        # Senha-mestra (env) — sem hash persistido p/ carimbar; sessão só expira
+        # naturalmente (TTL) ou trocando AUTH_SECRET/redeploy. É um mecanismo de
+        # bootstrap/recuperação, não o login padrão do dia a dia.
+        return {"name": "Administrador", "employee_id": None, "pin_hash": None}
     s = settings.get_or_create()
     if s.admin_pin_hash and verify_pin(data.password, s.admin_pin_hash):
         if needs_rehash(s.admin_pin_hash):
             s.admin_pin_hash = hash_pin(data.password)
             settings.update(s)
-        return {"name": "Administrador", "employee_id": None}
+        return {"name": "Administrador", "employee_id": None, "pin_hash": s.admin_pin_hash}
     raise UnauthorizedError(_INVALID)
