@@ -11,11 +11,15 @@ export function Brand({ title, subtitle }: { title: string; subtitle: string }) 
   return (
     <View>
       <View style={styles.brandBar}>
-        <Image src={fieldTechLogoUrl} style={styles.brandLogo} />
+        <View style={styles.brandLeft}>
+          <Image src={fieldTechLogoUrl} style={styles.brandLogo} />
+          <View>
+            <Text style={styles.title}>{title}</Text>
+            <Text style={styles.subtitle}>{subtitle}</Text>
+          </View>
+        </View>
         <Text style={styles.brandDoc}>{DOC_CODE}</Text>
       </View>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.subtitle}>{subtitle}</Text>
       <View style={styles.rule} />
     </View>
   );
