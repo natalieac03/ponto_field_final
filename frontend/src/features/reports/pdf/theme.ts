@@ -90,12 +90,12 @@ export const styles = StyleSheet.create({
     fontFamily: "Helvetica", fontSize: 9, color: C.dark, lineHeight: 1.35,
   },
   // Cabeçalho de marca
-  brandBar: { flexDirection: "row", alignItems: "flex-start", gap: 10, marginBottom: 8 },
-  brandText: { flex: 1, paddingTop: 2 },
+  brandBar: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 },
+  brandText: { flex: 1, justifyContent: "center" },
   brandLogo: { height: 40, width: 48.4 },
-  brandDoc: { fontSize: 7.5, color: C.muted, paddingTop: 2 },
-  title: { fontFamily: "Helvetica-Bold", fontSize: 13, color: C.dark },
-  subtitle: { fontSize: 8.5, color: C.muted, marginTop: 1 },
+  brandDoc: { fontSize: 7.5, color: C.muted, textAlign: "right" },
+  title: { fontFamily: "Helvetica-Bold", fontSize: 13, color: C.dark, lineHeight: 1.25 },
+  subtitle: { fontSize: 8.5, color: C.muted, marginTop: 2, lineHeight: 1.3 },
   rule: { height: 2, backgroundColor: C.blue, marginTop: 6, marginBottom: 12, borderRadius: 2 },
 
   sectionTitle: { fontFamily: "Helvetica-Bold", fontSize: 10.5, color: C.dark, marginBottom: 6, marginTop: 4 },
