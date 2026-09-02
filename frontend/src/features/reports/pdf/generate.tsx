@@ -1,8 +1,9 @@
 import { pdf } from "@react-pdf/renderer";
-import type { MonthlyReport, MonthlySummary } from "../../../types";
+import type { MonthlyReport, MonthlySummary, VacationReport } from "../../../types";
 import { AgendaColaboradorPDF } from "./AgendaColaboradorPDF";
 import { buildAgendaItems, buildDayCtx } from "./dayContext";
 import { MonthlyDashboardPDF } from "./MonthlyDashboardPDF";
+import { VacationReportPDF } from "./VacationReportPDF";
 
 export async function buildMonthlyPdfBlob(
   report: MonthlyReport, summaries: MonthlySummary[], scope: string,
@@ -33,5 +34,10 @@ export async function downloadAgendaPdf(
 ): Promise<void> {
   const items = await buildAgendaItems(employeeId, start, end);
   const blob = await pdf(<AgendaColaboradorPDF employeeName={employeeName} periodLabel={periodLabel} items={items} />).toBlob();
+  downloadBlob(blob, filename);
+}
+
+export async function downloadVacationPdf(report: VacationReport, filename: string): Promise<void> {
+  const blob = await pdf(<VacationReportPDF report={report} />).toBlob();
   downloadBlob(blob, filename);
 }

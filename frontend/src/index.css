@@ -1546,35 +1546,3 @@ hr {
   .cal-tag-text { display: none; }
 }
 
-/* ===== Cabeçalho de marca e assinaturas (somente impressão) ===== */
-.print-header { display: none; }
-.print-signatures { display: none; }
-
-@media print {
-  .print-header {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding-bottom: 10px;
-    margin-bottom: 16px;
-    border-bottom: 2px solid #00AEEF;
-  }
-  .print-header img { height: 34px; }
-  .print-header .print-header-title { font-size: 15px; font-weight: 700; color: #0D1B2A; }
-  .print-header .print-header-subtitle { font-size: 11px; color: #5A6B7A; margin-top: 1px; }
-
-  .print-signatures {
-    display: flex;
-    justify-content: space-between;
-    gap: 60px;
-    margin-top: 48px;
-    padding: 0 20px;
-    page-break-inside: avoid;
-  }
-  .sig-block { flex: 1; text-align: center; }
-  .sig-line { border-bottom: 1.5px solid #333; height: 38px; margin-bottom: 6px; }
-  .sig-label { font-size: 11px; font-weight: 700; letter-spacing: .6px; color: #111; }
-  .tabs, .sec-header .row, .icon-btn, .avatar-btn, .theme-toggle-compact, .no-print { display: none !important; }
-  .card { page-break-inside: avoid; border: 1px solid #D9E2EC; box-shadow: none; }
-  table tr { page-break-inside: avoid; }
-}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
-import { fieldTechLogoUrl } from "../assets";
 import { LeaveModal } from "../features/calendar/LeaveModal";
+import { downloadVacationPdf } from "../features/reports/pdf/generate";
 import { LEAVE_KIND_LABEL } from "../types";
 import type { Employee, VacationReport, VacationReportItem } from "../types";
 
@@ -23,6 +23,7 @@ export function RelatorioFerias() {
   const [report, setReport] = useState<VacationReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
   const [expanded, setExpanded] = useState<number | null>(null);
   const [err, setErr] = useState("");
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -49,19 +50,17 @@ export function RelatorioFerias() {
     finally { setBusy(false); }
   };
 
+  const baixarPdf = async () => {
+    if (!report || report.items.length === 0) return;
+    setPdfBusy(true);
+    try { await downloadVacationPdf(report, `ferias_afastamentos_${start}_a_${end}.pdf`); }
+    catch (e) { setErr(e instanceof Error ? e.message : "Erro ao gerar PDF."); }
+    finally { setPdfBusy(false); }
+  };
+
   return (
     <div>
-      <div className="print-header">
-        <img src={fieldTechLogoUrl} alt="Field Technology" />
-        <div>
-          <div className="print-header-title">Relatório de Férias e Afastamentos</div>
-          <div className="print-header-subtitle">
-            {br(start)} a {br(end)} · Gerado em {new Date().toLocaleDateString("pt-BR")}
-          </div>
-        </div>
-      </div>
-
-      <div className="sec-header no-print">
+      <div className="sec-header">
         <div>
           <div style={{ fontSize: 15, fontWeight: 700 }}>🏖 Relatório de férias e afastamentos</div>
           <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
@@ -73,9 +72,9 @@ export function RelatorioFerias() {
         </button>
       </div>
 
-      {msg && <div className="alert alert-success no-print" style={{ marginBottom: 12 }}>{msg}</div>}
+      {msg && <div className="alert alert-success" style={{ marginBottom: 12 }}>{msg}</div>}
 
-      <div className="card no-print">
+      <div className="card">
         <div className="card-title">Período de início das férias</div>
         <div className="form-grid">
           <div className="form-group">
@@ -102,8 +101,9 @@ export function RelatorioFerias() {
           </button>
           {report && report.items.length > 0 && (
             <>
-              <button className="btn btn-secondary btn-sm" onClick={() => window.print()}>
-                📄 Imprimir / PDF
+              <button className="btn btn-secondary btn-sm" onClick={baixarPdf} disabled={pdfBusy}
+                title="PDF com resumo do lote e espelho de cada colaborador antes das férias, A4">
+                {pdfBusy ? "⏳ Gerando…" : "📄 PDF"}
               </button>
               <button className="btn btn-secondary btn-sm" onClick={baixarCsv} disabled={busy}>
                 {busy ? "Gerando…" : "📊 Baixar CSV"}
@@ -141,7 +141,7 @@ export function RelatorioFerias() {
                       <th>Extra 50%</th>
                       <th>Extra 100%</th>
                       <th>Saldo</th>
-                      <th className="no-print"></th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -160,7 +160,7 @@ export function RelatorioFerias() {
                         <td className="mono" style={{ color: it.balance >= 0 ? "var(--pos)" : "var(--neg)", fontWeight: 600 }}>
                           {hm(it.balance)}
                         </td>
-                        <td className="no-print">
+                        <td>
                           <button className="btn btn-secondary btn-sm"
                             onClick={() => setExpanded(expanded === it.employee_id ? null : it.employee_id)}>
                             {expanded === it.employee_id ? "Ocultar" : "Espelho"}
@@ -259,12 +259,6 @@ function EspelhoCard({ item, visible, lookback }: {
             ))}
           </tbody>
         </table>
-      </div>
-
-      {/* Assinaturas — só na impressão */}
-      <div className="print-signatures">
-        <div className="sig-block"><div className="sig-line" /><div className="sig-label">ASSINATURA DO FUNCIONÁRIO</div></div>
-        <div className="sig-block"><div className="sig-line" /><div className="sig-label">ASSINATURA DO GESTOR</div></div>
       </div>
     </div>
   );
