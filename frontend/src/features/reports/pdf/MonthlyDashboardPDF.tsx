@@ -177,7 +177,7 @@ function EmployeePage({ report, s, dayCtx }: { report: MonthlyReport; s: Monthly
         <Kpi label="Dias (Ú/S/D)" value={`${s.days_h1}/${s.days_h2}/${s.days_h3}`} />
       </View>
 
-      <View style={[styles.panel, { marginBottom: 8 }]}>
+      <View style={[styles.panel, { flex: 0, marginBottom: 8 }]}>
         <Text style={styles.panelTitle}>Saldo por semana</Text>
         <BarChart data={weekly} width={510} height={46} />
       </View>
