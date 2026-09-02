@@ -9,7 +9,8 @@ from app.application.dtos import (
 )
 from app.application.identity import ensure_self_or_admin
 from app.presentation.deps import (
-    activity_repo, attachment_storage, employee_repo, get_identity, require_admin,
+    activity_repo, attachment_storage, auth_rate_limit, employee_repo, get_identity,
+    require_admin, require_auth_download,
 )
 
 router = APIRouter(prefix="/employees", tags=["employees"])
@@ -80,8 +81,9 @@ def rename_employee(employee_id: int, data: EmployeeRename, employees=Depends(em
 
 
 @router.post("/{employee_id}/password", response_model=EmployeeRead)
-def set_password_first_time(employee_id: int, data: EmployeePasswordSet, employees=Depends(employee_repo)):
-    """1º acesso — define senha (público). 409 se já tiver senha."""
+def set_password_first_time(employee_id: int, data: EmployeePasswordSet, employees=Depends(employee_repo),
+                            _rl: None = Depends(auth_rate_limit)):
+    """1º acesso — define senha (público, mas com rate limit anti brute-force). 409 se já tiver senha."""
     return uc.set_password_first_time(employees, employee_id, data)
 
 
@@ -133,10 +135,11 @@ def delete_photo(employee_id: int, employees=Depends(employee_repo),
 
 
 @router.get("/photos/{filename}")
-def download_photo(filename: str, storage=Depends(attachment_storage)):
+def download_photo(filename: str, storage=Depends(attachment_storage),
+                   _identity: dict = Depends(require_auth_download)):
     data, content_type = storage.read(filename)
     return Response(content=data, media_type=content_type,
-                    headers={"Cache-Control": "public, max-age=86400"})
+                    headers={"Cache-Control": "private, max-age=86400"})
 
 
 

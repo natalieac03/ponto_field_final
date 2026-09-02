@@ -7,7 +7,7 @@ from app.application.dtos import (
     RecordCreate, RecordPatchBreak, RecordPatchExit, RecordPatchNote,
     RecordPatchTimes, RecordRequestEdit, RecordReview,
 )
-from app.application.employees import schedule_tuple
+from app.application.employees import looks_like_allowed_attachment, schedule_tuple
 from app.application.errors import ConflictError, ForbiddenError, NotFoundError, ValidationError
 from app.application.ports import (
     AttachmentStorage, EmployeeRepository, RecordRepository, SettingsRepository,
@@ -319,6 +319,8 @@ def add_attachment(records: RecordRepository, storage: AttachmentStorage,
         raise ValidationError("Arquivo muito grande (máx. 5 MB).")
     if len(content) == 0:
         raise ValidationError("Arquivo vazio.")
+    if not looks_like_allowed_attachment(ext, content):
+        raise ValidationError("O conteúdo do arquivo não corresponde ao tipo declarado.")
 
     stored = storage.save(record_id, filename, content)
     existing.append(stored)

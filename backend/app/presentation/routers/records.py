@@ -10,7 +10,7 @@ from app.application.identity import ensure_self_or_admin
 from app.domain.models import DailyRecord
 from app.presentation.deps import (
     activity_repo, attachment_storage, employee_repo, get_identity, record_repo,
-    require_admin, settings_repo,
+    require_admin, require_auth_download, settings_repo,
 )
 from app.presentation.mappers import record_to_read
 
@@ -153,8 +153,9 @@ def delete_attachment(record_id: int, filename: str, records=Depends(record_repo
 
 
 @router.get("/attachments/{filename}")
-def download_attachment(filename: str, storage=Depends(attachment_storage)):
-    """Público — servido direto via <img>/<a> (nome é UUID aleatório)."""
+def download_attachment(filename: str, storage=Depends(attachment_storage),
+                        _identity: dict = Depends(require_auth_download)):
+    """Exige sessão válida (admin ou colaborador) — nome de arquivo sozinho não é segredo."""
     return FileResponse(storage.path(filename))
 
 

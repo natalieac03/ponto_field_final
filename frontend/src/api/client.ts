@@ -37,6 +37,12 @@ function authHeaders(base: Record<string, string> = {}): Record<string, string> 
   return authToken ? { ...base, Authorization: `Bearer ${authToken}` } : base;
 }
 
+// Fotos/anexos são carregados via <img src>/<a href> — o browser não anexa o
+// header Authorization nesses casos, então o token vai na query string.
+function authQuery(): string {
+  return authToken ? `?t=${encodeURIComponent(authToken)}` : "";
+}
+
 export class ApiError extends Error {
   status: number;
   code?: string;
@@ -220,7 +226,7 @@ export const api = {
     return uploadRequest<Employee>(`/employees/${id}/photo`, fd);
   },
   deleteEmployeePhoto: (id: number) => request<Employee>(`/employees/${id}/photo`, { method: "DELETE" }),
-  employeePhotoUrl: (filename: string) => `${BASE}/employees/photos/${filename}`,
+  employeePhotoUrl: (filename: string) => `${BASE}/employees/photos/${filename}${authQuery()}`,
 
   getRecords: () => request<DailyRecord[]>("/records"),
   getPendingRecords: () => request<DailyRecord[]>("/records/pending"),
@@ -250,7 +256,7 @@ export const api = {
   },
   deleteAttachment: (recordId: number, filename: string) =>
     request<DailyRecord>(`/records/${recordId}/attachments/${filename}`, { method: "DELETE" }),
-  attachmentUrl: (filename: string) => `${BASE}/records/attachments/${filename}`,
+  attachmentUrl: (filename: string) => `${BASE}/records/attachments/${filename}${authQuery()}`,
 
   getSettings: () => request<Settings>("/settings"),
   updateSettings: (data: SettingsUpdate) =>

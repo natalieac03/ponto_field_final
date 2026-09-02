@@ -38,6 +38,14 @@ def _looks_like_image(content: bytes) -> bool:
     return False
 
 
+def looks_like_allowed_attachment(ext: str, content: bytes) -> bool:
+    """Confere a assinatura real do arquivo p/ anexos (imagem OU PDF), pela
+    extensão declarada — evita executável/HTML renomeado para burlar o filtro."""
+    if ext == ".pdf":
+        return content[:5] == b"%PDF-"
+    return _looks_like_image(content)
+
+
 def schedule_tuple(emp) -> tuple | None:
     """7-tupla (seg..dom) da jornada personalizada, ou None se o colaborador não
     tiver nenhuma sobreposição definida (usa o padrão global)."""

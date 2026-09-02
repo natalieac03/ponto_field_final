@@ -42,3 +42,6 @@ pontofield-deploy.tar.gz
 .DS_Store
 .vscode/
 .idea/
+
+# ── Landpage WordPress (não faz parte do app) ───────────
+site/
