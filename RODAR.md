@@ -42,5 +42,9 @@ Acesse: http://localhost:5173
 ---
 
 Por padrão os dados ficam em `backend/che.db` (SQLite, vazio). Para rodar com os dados reais
-de produção (backup Postgres), veja a seção **"Usando o backup de produção localmente"** no
+de produção (backup SQLite), veja a seção **"Usando o backup de produção localmente"** no
 [README.md](README.md).
+
+> ⚠️ Se `DATABASE_URL` no `.env` usar caminho relativo (`sqlite:///./che.db`), o arquivo aberto
+> depende de onde o processo é iniciado — prefira caminho absoluto para evitar abrir um
+> `che.db` diferente do esperado.

@@ -1,6 +1,8 @@
 <div align="center">
 
-# ⏱️ Ponto Field
+<img src="frontend/imagens/FieldTech_Logo.png" width="220" alt="FieldTechnology" />
+
+# Ponto Field
 
 **Sistema de controle de ponto e banco de horas**
 
@@ -10,7 +12,7 @@ Bater ponto pelo celular · Espelho do colaborador · Aprovação de lançamento
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon-4169E1?logo=postgresql&logoColor=white)](https://neon.tech/)
+[![SQLite](https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
 
 </div>
 
@@ -172,6 +174,12 @@ Sem editar nada, o backend sobe com **SQLite vazio** (`backend/che.db`) — veja
 [Usando o backup de produção localmente](#-usando-o-backup-de-produção-localmente) para
 carregar dados reais.
 
+> ⚠️ O padrão `DATABASE_URL=sqlite:///./che.db` no `.env.example` usa caminho **relativo**.
+> Dependendo de onde o processo é iniciado, isso pode abrir um `che.db` diferente do que você
+> espera (dados que não aparecem, configurações que não batem). Se notar esse sintoma, troque
+> para um caminho **absoluto** — ver a tabela de [Solução de problemas](docs/DEPLOY.md) em
+> `docs/DEPLOY.md`.
+
 ### Frontend (em outro terminal)
 
 ```bash
@@ -189,30 +197,34 @@ Acesse **http://localhost:5173** — a documentação interativa da API fica em
 
 ## 🗄️ Usando o backup de produção localmente
 
-A produção roda em **PostgreSQL (Neon)**, então um backup gerado por lá (`pg_dump`, ex.:
-`backup_producao.sql`) **não** carrega direto no SQLite do `.env` padrão — são dois bancos
-diferentes. Para rodar localmente com esses dados, suba um Postgres local com Docker e aponte
-o `DATABASE_URL` para ele:
+A produção roda em **SQLite** dentro de um volume Docker (`/data/che.db`), com backups gerados
+pelos scripts em [`deploy/`](docs/DEPLOY.md) (`backup.sh`) como um arquivo `che_AAAAMMDD_HHMMSS.db.gz`
+— uma cópia binária do próprio banco, não um dump SQL. Para rodar localmente com esses dados:
 
 ```bash
-# 1. Sobe um Postgres local (uma vez só; os dados ficam no volume "pontofield_pgdata")
-docker run -d --name pontofield-pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=pontofield \
-  -p 5432:5432 -v pontofield_pgdata:/var/lib/postgresql/data postgres:17
+# 1. Baixe o backup do servidor (ou do bucket S3, se o backup off-site estiver configurado)
+scp ubuntu@<host>:/caminho/dos/backups/che_20260901_030000.db.gz .
 
-# 2. Restaura o dump (ajuste o caminho se o arquivo estiver em outro lugar)
-docker exec -i pontofield-pg psql -U postgres -d pontofield < backup_producao.sql
+# 2. Descomprima
+gunzip che_20260901_030000.db.gz
 
-# 3. Aponta o backend/.env para esse banco
-#    DATABASE_URL=postgresql://postgres:postgres@localhost:5432/pontofield
+# 3. Aponte o backend/.env para o arquivo, usando caminho ABSOLUTO
+#    DATABASE_URL=sqlite:///C:/caminho/completo/che_20260901_030000.db      (Windows)
+#    DATABASE_URL=sqlite:////caminho/completo/che_20260901_030000.db       (Linux/macOS)
 ```
 
-Depois de restaurar uma vez, é só deixar o container `pontofield-pg` rodando (ou
-`docker start pontofield-pg`) e manter essa linha no `.env` — o schema já vem migrado pelo
-próprio dump, e qualquer migração leve nova é aplicada automaticamente no próximo startup do
-backend.
+Reinicie o backend depois de trocar o `.env` — qualquer coluna nova adicionada por migrações
+leves é aplicada automaticamente no próximo startup.
 
+> ⚠️ Use sempre caminho **absoluto** aqui. Um caminho relativo (`sqlite:///./che.db`) depende
+> do diretório de onde o processo é iniciado e pode acabar abrindo um arquivo diferente do
+> esperado — ver [`docs/DEPLOY.md`](docs/DEPLOY.md#solução-de-problemas).
+>
 > Quer voltar ao SQLite vazio de desenvolvimento? Basta trocar `DATABASE_URL` de volta para
 > `sqlite:///./che.db` no `.env`.
+>
+> PostgreSQL (Neon ou outro) também é suportado como alternativa — veja
+> [PostgreSQL / Neon](#postgresql--neon) abaixo — mas não é o que a produção atual usa.
 
 ---
 
@@ -226,7 +238,7 @@ Variáveis do `backend/.env`:
 | `AUTH_SECRET` | Segredo de assinatura dos tokens — **obrigatório em produção** | — |
 | `MASTER_ADMIN_PASSWORD` | Senha-mestra do gestor (bootstrap/recuperação) | `1989` em dev |
 | `AUTH_TTL_SECONDS` | Validade do token de sessão | `43200` (12h) |
-| `DATABASE_URL` | SQLite ou PostgreSQL | `sqlite:///./che.db` |
+| `DATABASE_URL` | SQLite (padrão, usado em produção) ou PostgreSQL | `sqlite:///./che.db` |
 | `CORS_ORIGINS` | Origens permitidas, separadas por vírgula | `http://localhost:5173` |
 | `UPLOAD_DIR` | Pasta dos anexos | `./uploads` |
 
@@ -238,7 +250,9 @@ python3 -c "import secrets; print(secrets.token_urlsafe(48))"
 
 ### PostgreSQL / Neon
 
-Basta apontar o `DATABASE_URL` — o schema é criado e migrado automaticamente no startup:
+A produção atual usa SQLite (veja [Deploy](#-deploy)), mas o backend também suporta PostgreSQL
+como alternativa — basta apontar o `DATABASE_URL`, o schema é criado e migrado automaticamente
+no startup:
 
 ```env
 DATABASE_URL=postgresql://usuario:senha@host.neon.tech/neondb?sslmode=require

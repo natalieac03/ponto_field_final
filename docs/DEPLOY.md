@@ -303,6 +303,7 @@ gera o bundle, envia por `scp`, extrai no servidor e roda o `setup-server.sh`.
 | 502 no navegador | Container `api` não subiu. `docker compose logs api`. |
 | Esqueci a senha admin | Defina `MASTER_ADMIN_PASSWORD` no `.env` e `docker compose up -d api`. |
 | Build sem memória (t3.micro) | Crie swap: `sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile`. |
+| AFD/relatório sai com dados de empresa certos mas **zero registros** (ou vice-versa), só em dev local | Sintoma de **dois `che.db` diferentes** sendo lidos. Em produção (Docker) o `DATABASE_URL` já é absoluto (`/data/che.db` dentro do container) — isso não acontece. Mas em desenvolvimento local, se o `backend/.env` usa caminho **relativo** (`sqlite:///./che.db`), o arquivo aberto depende de qual diretório o processo foi iniciado, e pode acabar lendo um `che.db` diferente do que você espera. Use caminho absoluto no `.env` local, ex.: `DATABASE_URL=sqlite:///C:/caminho/completo/backend/che.db` (Windows) ou `sqlite:////caminho/completo/backend/che.db` (Linux/macOS). |
 
 ### Comandos úteis
 ```bash
