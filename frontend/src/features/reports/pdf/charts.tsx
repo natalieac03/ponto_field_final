@@ -27,12 +27,22 @@ export function BarChart({ data, width, height }: { data: Bar[]; width: number; 
         const h = (Math.abs(d.value) / range) * plotH;
         const y = d.value >= 0 ? zeroY - h : zeroY;
         const color = d.value >= 0 ? C.blue : C.neg;
+
+        // Quando a barra é alta o bastante para não sobrar espaço fora dela,
+        // o rótulo do valor vai por DENTRO da barra (em branco), em vez de
+        // fora — fora ele ficaria espremido contra o rótulo da semana e
+        // acabava sobrepondo a própria barra.
+        const outsideY = d.value >= 0 ? y - 3 : y + h + 8;
+        const fitsOutside = d.value >= 0 ? outsideY >= 7 : outsideY <= plotBottom - 2;
+        const labelY = fitsOutside ? outsideY : (d.value >= 0 ? y + 8 : y + h - 4);
+        const labelFill = fitsOutside ? color : C.white;
+
         return (
           <G key={i}>
             <Rect x={cx - barW / 2} y={y} width={barW} height={Math.max(h, 0.5)} fill={color} rx={2} />
             <SvgText
-              x={cx} y={d.value >= 0 ? Math.max(y - 3, 7) : Math.min(y + h + 8, plotBottom - 2)}
-              style={{ fontSize: 6.5, fontFamily: "Helvetica-Bold" }} fill={color} textAnchor="middle"
+              x={cx} y={labelY}
+              style={{ fontSize: 6.5, fontFamily: "Helvetica-Bold" }} fill={labelFill} textAnchor="middle"
             >
               {hmSigned(d.value)}
             </SvgText>
