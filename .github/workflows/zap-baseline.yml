@@ -1,0 +1,86 @@
+name: ZAP Baseline Scan
+
+# Substitui o HawkScan (chave de teste expirada) por um DAST gratuito e
+# open-source. Sobe backend (FastAPI, modo development/sqlite, sem
+# segredos) e frontend (vite) localmente no runner e aponta o ZAP para eles.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  zap-baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instala dependências do backend
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      - name: Sobe o backend (modo development, sem segredos)
+        working-directory: backend
+        env:
+          APP_ENV: development
+          DATABASE_URL: sqlite:///./che.db
+          CORS_ORIGINS: http://localhost:5173
+        run: |
+          nohup python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 > backend.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8000/docs > /dev/null && break
+            sleep 1
+          done
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instala dependências do frontend
+        working-directory: frontend
+        run: npm ci
+
+      - name: Sobe o frontend (vite dev)
+        working-directory: frontend
+        run: |
+          nohup npx vite --host 0.0.0.0 --port 5173 > frontend.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:5173 > /dev/null && break
+            sleep 1
+          done
+
+      - name: ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          target: "http://localhost:5173"
+          # Só reporta por enquanto — depois de revisar os alertas e ajustar
+          # um .zap/rules.tsv com falsos-positivos, mude para true para
+          # bloquear o pipeline em achados de alto risco.
+          fail_action: false
+          allow_issue_writing: false
+          cmd_options: "-a"
+
+      - name: Logs (em caso de falha ao subir os serviços)
+        if: failure()
+        run: |
+          echo "── backend.log ──"; cat backend/backend.log 2>/dev/null || true
+          echo "── frontend.log ──"; cat frontend/frontend.log 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-report
+          path: |
+            report_html.html
+            report_md.md
+            report_json.json
