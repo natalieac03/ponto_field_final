@@ -1,4 +1,5 @@
-import { Text, View } from "@react-pdf/renderer";
+import { Image, Text, View } from "@react-pdf/renderer";
+import { fieldTechLogoUrl } from "../../../assets";
 import { C, DOC_CODE, styles } from "./theme";
 
 /** Peças de layout comuns a todos os relatórios em PDF — cabeçalho de marca,
@@ -10,10 +11,7 @@ export function Brand({ title, subtitle }: { title: string; subtitle: string }) 
   return (
     <View>
       <View style={styles.brandBar}>
-        <View style={styles.brandLeft}>
-          <Text style={styles.brandField}>FIELD</Text>
-          <Text style={styles.brandTech}> TECHNOLOGY</Text>
-        </View>
+        <Image src={fieldTechLogoUrl} style={styles.brandLogo} />
         <Text style={styles.brandDoc}>{DOC_CODE}</Text>
       </View>
       <Text style={styles.title}>{title}</Text>

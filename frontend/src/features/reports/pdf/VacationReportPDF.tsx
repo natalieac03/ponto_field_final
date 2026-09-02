@@ -5,14 +5,14 @@ import { Brand, type Col, Footer, Kpi, Row, SignatureBlock, TableHead } from "./
 import { brDate, C, hm, hmSigned, styles } from "./theme";
 
 const SUMMARY_COLS: Col[] = [
-  { label: "Colaborador", width: 100 },
+  { label: "Colaborador", width: 116 },
   { label: "CPF", width: 60 },
-  { label: "Afastamento", width: 60 },
-  { label: "Período", width: 78, align: "center" },
-  { label: "Dias", width: 28, align: "center" },
-  { label: "Trabalhado", width: 48, align: "right" },
-  { label: "Extra 50%", width: 44, align: "right" },
-  { label: "Extra 100%", width: 48, align: "right" },
+  { label: "Afastamento", width: 56 },
+  { label: "Período", width: 76, align: "center" },
+  { label: "Dias", width: 26, align: "center" },
+  { label: "Trab.", width: 46, align: "right" },
+  { label: "Ex.50%", width: 42, align: "right" },
+  { label: "Ex.100%", width: 46, align: "right" },
   { label: "Saldo", width: 54, align: "right" },
 ];
 
@@ -31,6 +31,10 @@ const RECORD_COLS: Col[] = [
 const leaveLabel = (kind: string): string =>
   (LEAVE_KIND_LABEL[kind as keyof typeof LEAVE_KIND_LABEL] ?? kind).replace(/^\p{Emoji}\s*/u, "");
 
+// Versão curta p/ caber na coluna "Afastamento" da tabela-resumo sem quebrar linha.
+const LEAVE_LABEL_SHORT: Record<string, string> = { ferias: "Férias", licenca: "Licença", folga: "Folga" };
+const leaveLabelShort = (kind: string): string => LEAVE_LABEL_SHORT[kind] ?? leaveLabel(kind);
+
 function SummaryPage({ report }: { report: VacationReport }) {
   const t = report.items.reduce((a, it) => ({
     dias: a.dias + it.leave_days,
@@ -46,9 +50,9 @@ function SummaryPage({ report }: { report: VacationReport }) {
 
       <View style={styles.kpiRow}>
         <Kpi label="Colaboradores" value={String(report.items.length)} />
-        <Kpi label="Dias de afastamento" value={String(t.dias)} />
-        <Kpi label="Trabalhado no espelho" value={hm(t.trabalhado)} />
-        <Kpi label="Extra 100% no espelho" value={t.extra100 > 0 ? hm(t.extra100) : "—"} />
+        <Kpi label="Dias afastados" value={String(t.dias)} />
+        <Kpi label="Trabalhado" value={hm(t.trabalhado)} />
+        <Kpi label="Extra 100%" value={t.extra100 > 0 ? hm(t.extra100) : "—"} />
         <Kpi label="Saldo total" value={hmSigned(t.saldo)} color={t.saldo >= 0 ? C.pos : C.neg} />
       </View>
 
@@ -57,7 +61,7 @@ function SummaryPage({ report }: { report: VacationReport }) {
         <TableHead cols={SUMMARY_COLS} />
         {report.items.map((it) => (
           <Row key={`${it.employee_id}-${it.leave_start}`} cols={SUMMARY_COLS} cells={[
-            it.employee_name, it.cpf_masked ?? "—", leaveLabel(it.leave_kind),
+            it.employee_name, it.cpf_masked ?? "—", leaveLabelShort(it.leave_kind),
             `${brDate(it.leave_start)} – ${brDate(it.leave_end)}`, String(it.leave_days),
             hm(it.worked_minutes), it.extra50_minutes > 0 ? hm(it.extra50_minutes) : "—",
             it.extra100_minutes > 0 ? hm(it.extra100_minutes) : "—", hmSigned(it.balance),

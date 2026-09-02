@@ -91,9 +91,7 @@ export const styles = StyleSheet.create({
   },
   // Cabeçalho de marca
   brandBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 },
-  brandLeft: { flexDirection: "row", alignItems: "baseline" },
-  brandField: { fontFamily: "Helvetica-Bold", fontSize: 15, color: C.blue, letterSpacing: 0.3 },
-  brandTech: { fontFamily: "Helvetica-Bold", fontSize: 15, color: C.dark, letterSpacing: 0.3 },
+  brandLogo: { height: 26, width: 31.5 },
   brandDoc: { fontSize: 7.5, color: C.muted },
   title: { fontFamily: "Helvetica-Bold", fontSize: 13, color: C.dark, marginTop: 8 },
   subtitle: { fontSize: 8.5, color: C.muted, marginTop: 1 },
