@@ -54,6 +54,7 @@ _COLUMN_MIGRATIONS = [
 def _ensure_columns() -> None:
     insp = inspect(engine)
     existing_tables = set(insp.get_table_names())
+    added = []
     with engine.begin() as conn:
         for table, column, ddl in _COLUMN_MIGRATIONS:
             if table not in existing_tables:
@@ -61,6 +62,9 @@ def _ensure_columns() -> None:
             cols = {c["name"] for c in insp.get_columns(table)}
             if column not in cols:
                 conn.execute(text(f'ALTER TABLE {table} ADD COLUMN {column} {ddl}'))
+                added.append(f"{table}.{column}")
+    if added:
+        print(f"[startup] Migração de coluna: adicionadas {len(added)} — {', '.join(added)}")
 
 
 def create_db_and_tables() -> None:
