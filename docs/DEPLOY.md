@@ -1,11 +1,22 @@
-# Guia de Deploy — Ponto_Field na AWS (EC2)
+# Guia de Deploy — Ponto_Field em um VPS Linux (Hostinger, AWS EC2 ou outro)
+
+> **Produção atual roda no Railway** (serviços "back" e "front"), com domínio próprio
+> `ponto.fieldtec.agr.br` e banco **PostgreSQL no Neon** (`sa-east-1`) — não em VPS.
+> Este guia documenta a **alternativa self-hosted**: útil como referência futura caso
+> seja necessário sair de plataformas gerenciadas, mas não é o plano em andamento. Para
+> ajustes de performance na configuração atual (Railway + Neon), veja
+> [Ajustes de performance no Railway (produção atual)](#ajustes-de-performance-no-railway-produção-atual)
+> ao final deste documento.
 
 Coloca o sistema no ar com **HTTPS automático**, usando Docker + Caddy. O mesmo
-procedimento vale para qualquer servidor Linux (basta ter Docker).
+procedimento vale para qualquer servidor Linux com Docker — os passos abaixo usam a
+AWS EC2 como exemplo, mas o comando final (`docker compose up -d --build`) e a
+estrutura de pastas são idênticos numa **VPS da Hostinger**. As diferenças estão
+só na hora de criar a máquina (Passo 1) — o resto (Passos 2 em diante) é igual.
 
-**Tempo estimado:** ~30–45 min. **Você vai precisar de:** conta AWS e um **hostname**
-apontando para o servidor. Não tem domínio próprio? Use um **subdomínio grátis do
-DuckDNS** (Passo 2) — custo zero e funciona com HTTPS.
+**Tempo estimado:** ~30–45 min. **Você vai precisar de:** uma VPS (AWS EC2, Hostinger
+ou similar) e um **hostname** apontando para o servidor. Não tem domínio próprio? Use
+um **subdomínio grátis do DuckDNS** (Passo 2) — custo zero e funciona com HTTPS.
 
 ---
 
@@ -22,18 +33,22 @@ DuckDNS** (Passo 2) — custo zero e funciona com HTTPS.
             │ rede interna do Docker
             ▼
    ┌─────────────────┐   uvicorn (porta 8000, interna)
-   │  container api   │   FastAPI + SQLite em /data (volume)
+   │  container api   │   FastAPI + SQLite em /data (volume) — banco deste cenário self-hosted
    └─────────────────┘
             │
         deploy/data/  (che.db + uploads, no disco do servidor → backup)
 ```
+
+> Este diagrama descreve o cenário **self-hosted** (SQLite em volume local). A produção
+> atual no Railway usa PostgreSQL externo (Neon) em vez de SQLite — ver nota no topo do
+> documento.
 
 Frontend e API ficam **no mesmo domínio** → sem CORS. O Caddy cuida do certificado
 TLS sozinho (Let's Encrypt) assim que o domínio apontar para o servidor.
 
 ---
 
-## Passo 1 — Criar a instância EC2
+## Passo 1 — Criar o servidor (AWS EC2 — veja a alternativa Hostinger logo abaixo)
 
 1. Console AWS → **EC2** → **Launch instance**.
 2. **Nome:** `ponto-field`.
@@ -54,6 +69,24 @@ TLS sozinho (Let's Encrypt) assim que o domínio apontar para o servidor.
 ### Elastic IP (recomendado)
 Para o IP não mudar a cada restart: EC2 → **Elastic IPs** → **Allocate** → **Associate**
 à instância. Use esse IP no DNS.
+
+### Alternativa — VPS da Hostinger
+
+1. Painel Hostinger → **VPS** → contratar um plano **KVM** (não a hospedagem
+   compartilhada/cPanel — essa não dá acesso root nem roda Docker).
+   - **KVM 2** (2 vCPU / 8 GB RAM / 100 GB NVMe) é uma escolha folgada para este
+     sistema (uso interno, poucos colaboradores) — sobra margem pra fazer o build
+     das duas imagens (api + web) sem gargalo.
+   - **KVM 1** (1 vCPU / 4 GB RAM) também roda o sistema no dia a dia, mas pode
+     ficar apertado durante o `docker compose up -d --build` (compila o frontend).
+     Se escolher KVM 1, ative um pouco de *swap* (mesma nota do t3.micro abaixo).
+2. Ao criar a VPS, escolha o template **Ubuntu 24.04 LTS**. O painel já te dá o
+   **IP público** e a **senha root** (ou permite subir sua chave SSH).
+3. Não precisa de Elastic IP — na Hostinger o IP da VPS já é fixo por padrão.
+4. Firewall: no painel da Hostinger (aba *Firewall* da VPS) ou via `ufw` no
+   servidor, libere as mesmas 3 portas da tabela acima (22, 80, 443).
+5. Conecte com `ssh root@<IP_DA_VPS>` (ou `ssh ubuntu@<IP>` se criou um usuário
+   próprio) e siga a partir do **Passo 2** normalmente.
 
 ---
 
@@ -130,6 +163,75 @@ cd ~/ponto-field
 git clone https://github.com/<sua-org>/ponto-field.git ~/ponto-field
 cd ~/ponto-field
 ```
+
+---
+
+## Migrando do Railway (produção atual) para este servidor
+
+> Só é necessário se um dia a decisão for sair do Railway. Hoje a produção fica lá —
+> ver nota no topo do documento.
+
+Se o sistema já está no ar no Railway com dados reais, faça **isto antes do Passo 6**
+(subir a stack) — senão o servidor novo nasce com banco vazio. O domínio já pode
+apontar para o servidor novo desde já (o DNS do Passo 2 é o mesmo; o Railway continua
+respondendo pelo endereço `*.up.railway.app` dele enquanto isso).
+
+A produção atual usa **PostgreSQL no Neon**, não SQLite — o caminho abaixo já assume isso.
+
+### 1. Baixe o banco com `pg_dump`
+Pegue a `DATABASE_URL` nas variáveis do serviço "back" no Railway (ou direto no painel
+do Neon) e rode do seu computador:
+```bash
+pg_dump "postgresql://usuario:senha@host.neon.tech/neondb?sslmode=require" -Fc -f che_prod.dump
+```
+
+### 2. Converta para SQLite no servidor novo
+Este servidor self-hosted usa SQLite por padrão (`deploy/docker-entrypoint.sh` e o
+`docker-compose.yml` apontam para `/data/che.db`). Para trazer os dados do Postgres para
+SQLite, use uma ferramenta de conversão (ex.: [`pgloader`](https://pgloader.io/) no sentido
+inverso não se aplica; o caminho mais direto é `pgsql2sqlite` ou exportar tabela a tabela
+com `psql \copy` + `sqlite3 .import`). Alternativamente — **e mais simples** — troque o
+`DATABASE_URL` deste servidor para apontar direto ao mesmo Postgres do Neon (ver
+`### PostgreSQL / Neon` no [README](../README.md)), eliminando a conversão de esquema por
+completo; o self-host então usa Docker + Caddy só para servir a aplicação, mantendo o Neon
+como banco.
+
+> Instale o Railway CLI (`npm i -g @railway/cli`, depois `railway login` e `railway link`)
+> se preferir inspecionar variáveis e logs do serviço via `railway` em vez do painel web.
+
+### 3. Baixe os anexos/fotos
+**Se o Railway está com `S3_BUCKET` configurado (Railway Storage / R2 / MinIO):**
+os arquivos já estão num bucket S3-compatível, independente do container — a forma
+mais simples é **apontar o `.env` do servidor novo para o mesmo bucket** (copie
+`S3_ENDPOINT_URL`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` do
+Railway para o `.env` novo) e pronto — nada para baixar. Só fique atento: se algum
+dia você deletar o projeto no Railway, confirme antes que isso não apaga o bucket
+junto (buckets do Railway Storage costumam morrer com o projeto — nesse caso, migre
+os arquivos para um bucket separado, ex. Cloudflare R2, antes de desligar o Railway).
+
+**Se os anexos estão no disco local do container** (sem `S3_*` configurado):
+```bash
+railway ssh -- "tar -czf - -C /data uploads" > uploads.tar.gz
+```
+
+### 4. Coloque os arquivos no servidor novo
+```bash
+scp che.db uploads.tar.gz root@<IP_DO_SERVIDOR>:~/ponto-field/deploy/
+# no servidor:
+mkdir -p ~/ponto-field/deploy/data
+mv ~/ponto-field/deploy/che.db ~/ponto-field/deploy/data/che.db
+tar -xzf ~/ponto-field/deploy/uploads.tar.gz -C ~/ponto-field/deploy/data/
+rm ~/ponto-field/deploy/uploads.tar.gz
+```
+(Pule a parte de `uploads.tar.gz` se você optou por manter o bucket S3 no passo 3.)
+
+### 5. Depois de subir (Passo 6) e conferir que está tudo certo
+- Confira no site novo que os colaboradores, o histórico de ponto e as fotos batem
+  com o Railway.
+- **Não delete o projeto no Railway ainda.** Deixe alguns dias como fallback —
+  se algo estiver errado no servidor novo, você volta a apontar o DNS pra lá.
+- Só depois de confirmar que o servidor novo está estável (e com o backup do
+  Passo 8 já rodando), cancele/pause o serviço no Railway.
 
 ---
 
@@ -328,3 +430,54 @@ docker compose down               # derruba (dados em deploy/data/ permanecem)
 Para testar sem domínio público (ex.: só na LAN por IP), no `.env` use `DOMAIN=:80`
 (HTTP puro, sem TLS) e acesse por `http://<ip-do-servidor>`. Para produção real, use
 sempre um domínio com HTTPS.
+
+---
+
+## Ajustes de performance no Railway (produção atual)
+
+Topologia real da produção: dois serviços no Railway — **"back"** (FastAPI, builder
+Railpack — **não** usa `deploy/backend.Dockerfile`, que é só para o self-host acima) e
+**"front"** (estáticos), domínio próprio `ponto.fieldtec.agr.br`, banco **PostgreSQL no
+Neon** (`sa-east-1`, São Paulo) — externo ao Railway.
+
+### O que já foi feito
+- **Compressão de resposta:** `GZipMiddleware` adicionado em `backend/app/main.py` —
+  reduz o tamanho de payloads JSON grandes e exports (relatórios, listagens).
+- **Região do serviço:** ajustada no Railway para minimizar distância até o Neon
+  (`sa-east-1`); o Railway não oferece uma região exatamente em São Paulo, então alguma
+  latência residual é esperada mesmo na melhor opção disponível.
+
+### Recursos órfãos identificados (seguros para remover)
+Os volumes **`postgres-volume`** e **`redis-volume`** no painel do Railway são discos
+persistentes desconectados (aba Settings de cada um mostra "Connect to Service — Mount
+to Service", ou seja, nunca foram montados) — **não** são bancos rodando; o app não usa
+Redis (não há dependência `redis` no `backend/requirements.txt`) nem o Postgres do
+Railway (a `DATABASE_URL` real aponta para o Neon). Podem ser deletados sem impacto.
+
+### Decidido
+- **Cold start do Neon (autosuspend):** desativar autosuspend ("Always Active") exige
+  plano pago do Neon — decisão foi **permanecer no plano free** e mitigar em vez de
+  eliminar. Compute do projeto elevado para **2 vCPU** (máximo do free tier), o que reduz
+  o efeito do cold start (compute mais rápido ao "acordar") mesmo sem eliminá-lo por
+  completo. A primeira query após um período de inatividade ainda paga o custo de
+  reconexão — se a lentidão intermitente persistir, revisitar a opção de migrar para um
+  Postgres realmente hospedado no Railway (hoje o `postgres-volume` não é isso — seria
+  preciso adicionar o plugin/serviço Postgres do Railway de fato) ou reavaliar o plano
+  pago do Neon.
+- **Credenciais do Neon rotacionadas:** a senha que havia sido exposta em texto puro foi
+  trocada — o banco de produção agora vive em uma conta/projeto Neon novo, com senha
+  diferente. A `DATABASE_URL` no Railway já foi atualizada de acordo.
+
+### Pendente / a avaliar
+- **Múltiplos workers do uvicorn:** o Custom Start Command do serviço "back" no Railway
+  hoje não usa `--workers` (single worker). Aumentar (ex.: `--workers 4`) melhora
+  throughput sob carga concorrente, mas exige atenção a dois pontos:
+  - o rate limiter de login (`backend/app/infrastructure/ratelimit.py`) é **em memória**
+    e não é compartilhado entre processos — com N workers, o limite efetivo de tentativas
+    de login sobe por um fator de até N;
+  - com mais workers, cada um abre seu próprio pool de conexões SQLAlchemy — considerar
+    trocar para o endpoint **pooled** do Neon (hostname com sufixo `-pooler`, backed por
+    PgBouncer) para não esbarrar no limite de conexões do Neon.
+- Guia oficial [Neon + Railway](https://neon.com/docs/guides/railway) cobre apenas a
+  configuração básica da variável `DATABASE_URL` — não traz orientação sobre pooling,
+  região ou autosuspend além do que já está descrito aqui.

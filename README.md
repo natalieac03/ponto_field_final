@@ -12,7 +12,7 @@ Bater ponto pelo celular · Espelho do colaborador · Aprovação de lançamento
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![SQLite](https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon-4169E1?logo=postgresql&logoColor=white)](https://neon.tech/)
 
 </div>
 
@@ -197,34 +197,30 @@ Acesse **http://localhost:5173** — a documentação interativa da API fica em
 
 ## 🗄️ Usando o backup de produção localmente
 
-A produção roda em **SQLite** dentro de um volume Docker (`/data/che.db`), com backups gerados
-pelos scripts em [`deploy/`](docs/DEPLOY.md) (`backup.sh`) como um arquivo `che_AAAAMMDD_HHMMSS.db.gz`
-— uma cópia binária do próprio banco, não um dump SQL. Para rodar localmente com esses dados:
+A produção roda em **PostgreSQL (Neon)**, hospedado em Railway (veja [Deploy](#-deploy)). Para
+trabalhar localmente com dados reais, gere um dump com `pg_dump` e restaure num Postgres local:
 
 ```bash
-# 1. Baixe o backup do servidor (ou do bucket S3, se o backup off-site estiver configurado)
-scp ubuntu@<host>:/caminho/dos/backups/che_20260901_030000.db.gz .
+# 1. Dump completo do banco de produção (pega a DATABASE_URL no painel do Railway/Neon)
+pg_dump "postgresql://usuario:senha@host.neon.tech/neondb?sslmode=require" -Fc -f che_prod.dump
 
-# 2. Descomprima
-gunzip che_20260901_030000.db.gz
+# 2. Suba um Postgres local (ex.: Docker) e restaure
+docker run -d --name che-pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:16
+pg_restore -h localhost -U postgres -d postgres --clean --if-exists --create che_prod.dump
 
-# 3. Aponte o backend/.env para o arquivo, usando caminho ABSOLUTO
-#    DATABASE_URL=sqlite:///C:/caminho/completo/che_20260901_030000.db      (Windows)
-#    DATABASE_URL=sqlite:////caminho/completo/che_20260901_030000.db       (Linux/macOS)
+# 3. Aponte o backend/.env para o banco local
+#    DATABASE_URL=postgresql://postgres:postgres@localhost:5432/neondb
 ```
 
 Reinicie o backend depois de trocar o `.env` — qualquer coluna nova adicionada por migrações
 leves é aplicada automaticamente no próximo startup.
 
-> ⚠️ Use sempre caminho **absoluto** aqui. Um caminho relativo (`sqlite:///./che.db`) depende
-> do diretório de onde o processo é iniciado e pode acabar abrindo um arquivo diferente do
-> esperado — ver [`docs/DEPLOY.md`](docs/DEPLOY.md#solução-de-problemas).
+> ⚠️ **Nunca** aponte o `.env` local direto para a `DATABASE_URL` de produção — qualquer teste
+> local escreveria no banco real. Sempre restaure numa cópia local antes de rodar.
 >
-> Quer voltar ao SQLite vazio de desenvolvimento? Basta trocar `DATABASE_URL` de volta para
-> `sqlite:///./che.db` no `.env`.
->
-> PostgreSQL (Neon ou outro) também é suportado como alternativa — veja
-> [PostgreSQL / Neon](#postgresql--neon) abaixo — mas não é o que a produção atual usa.
+> Quer voltar ao SQLite vazio de desenvolvimento (padrão de quem não tem Postgres local)? Basta
+> deixar `DATABASE_URL=sqlite:///./che.db` no `.env` — veja [PostgreSQL / Neon](#postgresql--neon)
+> abaixo para mais detalhes sobre os dois modos suportados.
 
 ---
 
@@ -238,7 +234,7 @@ Variáveis do `backend/.env`:
 | `AUTH_SECRET` | Segredo de assinatura dos tokens — **obrigatório em produção** | — |
 | `MASTER_ADMIN_PASSWORD` | Senha-mestra do gestor (bootstrap/recuperação) | `1989` em dev |
 | `AUTH_TTL_SECONDS` | Validade do token de sessão | `43200` (12h) |
-| `DATABASE_URL` | SQLite (padrão, usado em produção) ou PostgreSQL | `sqlite:///./che.db` |
+| `DATABASE_URL` | PostgreSQL (usado em produção, via Neon) ou SQLite (padrão em desenvolvimento) | `sqlite:///./che.db` |
 | `CORS_ORIGINS` | Origens permitidas, separadas por vírgula | `http://localhost:5173` |
 | `UPLOAD_DIR` | Pasta dos anexos | `./uploads` |
 
@@ -250,9 +246,9 @@ python3 -c "import secrets; print(secrets.token_urlsafe(48))"
 
 ### PostgreSQL / Neon
 
-A produção atual usa SQLite (veja [Deploy](#-deploy)), mas o backend também suporta PostgreSQL
-como alternativa — basta apontar o `DATABASE_URL`, o schema é criado e migrado automaticamente
-no startup:
+A **produção atual usa PostgreSQL, hospedado no Neon** (veja [Deploy](#-deploy)). Em desenvolvimento
+local, sem configurar nada, o backend sobe com SQLite (mais simples, zero setup) — basta apontar o
+`DATABASE_URL` para trocar de banco, o schema é criado e migrado automaticamente no startup:
 
 ```env
 DATABASE_URL=postgresql://usuario:senha@host.neon.tech/neondb?sslmode=require
@@ -277,20 +273,19 @@ A troca é automática conforme o tema ativo — basta substituir os arquivos, s
 
 ## 📦 Deploy
 
-O projeto acompanha infraestrutura pronta em `deploy/`:
-
-- **Docker Compose** com backend, frontend e **Caddy** (HTTPS automático via Let's Encrypt)
-- Scripts de `backup`, `restore`, `update` e `reset-db`
-- Backup off-site opcional para S3
-
-Guia completo em [`docs/DEPLOY.md`](docs/DEPLOY.md).
-
-Também roda em plataformas gerenciadas (Railway, Render, Fly.io). Nesse caso, o comando
-de start do backend é:
+**Produção atual:** dois serviços no **Railway** (backend "back" e frontend "front"),
+domínio próprio `ponto.fieldtec.agr.br` (CNAME + TLS automático), banco **PostgreSQL no
+Neon** (`sa-east-1`, São Paulo). Comando de start do backend no Railway:
 
 ```
 uvicorn app.main:app --host 0.0.0.0 --port $PORT
 ```
+
+O projeto também acompanha infraestrutura pronta em `deploy/` para **self-host em VPS**
+(Docker Compose com backend, frontend e **Caddy** para HTTPS automático via Let's Encrypt,
+scripts de `backup`/`restore`/`update`/`reset-db`, backup off-site opcional para S3) — uma
+alternativa ao Railway, útil se algum dia for necessário sair de plataformas gerenciadas.
+Guia completo (inclui **VPS Hostinger com domínio próprio**) em [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 ---
 
