@@ -204,6 +204,13 @@ def change_password(employees: EmployeeRepository, employee_id: int,
     return to_read(employees.update(emp))
 
 
+def reset_password(employees: EmployeeRepository, employee_id: int) -> EmployeeRead:
+    """Admin — limpa a senha (esqueci minha senha). Colaborador define uma nova no próximo acesso."""
+    emp = _require(employees, employee_id)
+    emp.pin_hash = None
+    return to_read(employees.update(emp))
+
+
 def update_schedule(employees: EmployeeRepository, employee_id: int,
                     data: WeeklySchedule) -> EmployeeRead:
     emp = _require(employees, employee_id)

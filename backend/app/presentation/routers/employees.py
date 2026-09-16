@@ -97,6 +97,16 @@ def change_password(employee_id: int, data: EmployeePasswordChange, employees=De
     return emp
 
 
+@router.delete("/{employee_id}/password", response_model=EmployeeRead)
+def reset_password(employee_id: int, employees=Depends(employee_repo),
+                   logs=Depends(activity_repo), admin: dict = Depends(require_admin)):
+    """Admin — 'esqueci minha senha': limpa a senha atual. No próximo acesso o colaborador
+    define uma nova (mesmo fluxo do 1º acesso), sem o admin precisar saber a senha antiga."""
+    emp = uc.reset_password(employees, employee_id)
+    _log_emp(logs, admin, emp, "senha_resetada", f"Resetou a senha de acesso de {emp.name}")
+    return emp
+
+
 @router.patch("/{employee_id}/profile", response_model=EmployeeRead)
 def update_profile(employee_id: int, data: EmployeeProfileUpdate, employees=Depends(employee_repo),
                    logs=Depends(activity_repo), admin: dict = Depends(require_admin)):

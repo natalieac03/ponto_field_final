@@ -214,6 +214,8 @@ export const api = {
     request<Employee>(`/employees/${id}/password`, {
       method: "PATCH", body: JSON.stringify({ current_password, new_password }),
     }),
+  resetEmployeePassword: (id: number) =>
+    request<Employee>(`/employees/${id}/password`, { method: "DELETE" }),
   updateEmployeeSchedule: (id: number, schedule: WeeklySchedule) =>
     request<Employee>(`/employees/${id}/schedule`, {
       method: "PUT", body: JSON.stringify(schedule),

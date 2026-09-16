@@ -25,8 +25,10 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: Props) {
   const [contractType, setContractType] = useState(employee?.contract_type ?? "");
   const [cpf, setCpf] = useState("");   // vazio = não mexe; digitar novo substitui
   const [photo, setPhoto] = useState(employee?.photo ?? null);
+  const [hasPassword, setHasPassword] = useState(employee?.has_password ?? false);
   const [saving, setSaving] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
+  const [resettingPw, setResettingPw] = useState(false);
   const [error, setError] = useState("");
   const photoInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -63,6 +65,19 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: Props) {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao remover a foto.");
     } finally { setPhotoBusy(false); }
+  };
+
+  const handleResetPassword = async () => {
+    if (!employee) return;
+    if (!confirm(`Redefinir a senha de ${employee.name}? A sessão atual dele(a) será encerrada e, no próximo acesso, ele(a) vai definir uma nova senha (como no 1º acesso).`)) return;
+    setError(""); setResettingPw(true);
+    try {
+      await api.resetEmployeePassword(employee.id);
+      setHasPassword(false);
+      onSaved("Senha redefinida — o colaborador vai definir uma nova no próximo acesso ✓");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao redefinir a senha.");
+    } finally { setResettingPw(false); }
   };
 
   const submit = async () => {
@@ -113,6 +128,22 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: Props) {
           <div className="form-group" style={{ marginBottom: 12 }}>
             <label>PIN inicial <span style={{ color: "var(--muted)", fontWeight: 400 }}>(opcional — 4 a 8 caracteres)</span></label>
             <input type="text" maxLength={8} value={pin} onChange={e => setPin(e.target.value)} placeholder="Vazio = define no 1º acesso" />
+          </div>
+        )}
+
+        {isEdit && (
+          <div className="form-group" style={{ marginBottom: 12 }}>
+            <label>Acesso</label>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 13, color: "var(--muted)" }}>
+                {hasPassword ? "Senha definida" : "Ainda não definiu senha (1º acesso pendente)"}
+              </span>
+              {hasPassword && (
+                <button type="button" className="btn btn-secondary btn-sm" disabled={resettingPw} onClick={handleResetPassword}>
+                  {resettingPw ? "Redefinindo…" : "Esqueceu a senha? Redefinir"}
+                </button>
+              )}
+            </div>
           </div>
         )}
 
