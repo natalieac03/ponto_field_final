@@ -26,6 +26,7 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: Props) {
   const [cpf, setCpf] = useState("");   // vazio = não mexe; digitar novo substitui
   const [photo, setPhoto] = useState(employee?.photo ?? null);
   const [hasPassword, setHasPassword] = useState(employee?.has_password ?? false);
+  const [pwJustReset, setPwJustReset] = useState(false);
   const [saving, setSaving] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [resettingPw, setResettingPw] = useState(false);
@@ -74,6 +75,7 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: Props) {
     try {
       await api.resetEmployeePassword(employee.id);
       setHasPassword(false);
+      setPwJustReset(true);
       onSaved("Senha redefinida — o colaborador vai definir uma nova no próximo acesso ✓");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao redefinir a senha.");
@@ -135,8 +137,12 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: Props) {
           <div className="form-group" style={{ marginBottom: 12 }}>
             <label>Acesso</label>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 13, color: "var(--muted)" }}>
-                {hasPassword ? "Senha definida" : "Ainda não definiu senha (1º acesso pendente)"}
+              <span style={{ fontSize: 13, color: pwJustReset ? "var(--success)" : "var(--muted)" }}>
+                {hasPassword
+                  ? "Senha definida"
+                  : pwJustReset
+                  ? "Senha resetada — vai definir uma nova no próximo acesso"
+                  : "Ainda não definiu senha (1º acesso pendente)"}
               </span>
               {hasPassword && (
                 <button type="button" className="btn btn-secondary btn-sm" disabled={resettingPw} onClick={handleResetPassword}>
