@@ -51,10 +51,18 @@ _COLUMN_MIGRATIONS = [
 ]
 
 
+# Colunas que ficaram NOT NULL de versões antigas do schema mas hoje o modelo
+# permite NULL (ex.: entry_time — dias fechados só com abono, sem horário batido).
+_NULLABLE_FIXUPS = [
+    ("daily_records", "entry_time"),
+]
+
+
 def _ensure_columns() -> None:
     insp = inspect(engine)
     existing_tables = set(insp.get_table_names())
     added = []
+    relaxed = []
     with engine.begin() as conn:
         for table, column, ddl in _COLUMN_MIGRATIONS:
             if table not in existing_tables:
@@ -63,8 +71,17 @@ def _ensure_columns() -> None:
             if column not in cols:
                 conn.execute(text(f'ALTER TABLE {table} ADD COLUMN {column} {ddl}'))
                 added.append(f"{table}.{column}")
+        for table, column in _NULLABLE_FIXUPS:
+            if table not in existing_tables:
+                continue
+            col_info = next((c for c in insp.get_columns(table) if c["name"] == column), None)
+            if col_info is not None and not col_info["nullable"] and not DATABASE_URL.startswith("sqlite"):
+                conn.execute(text(f'ALTER TABLE {table} ALTER COLUMN {column} DROP NOT NULL'))
+                relaxed.append(f"{table}.{column}")
     if added:
         print(f"[startup] Migração de coluna: adicionadas {len(added)} — {', '.join(added)}")
+    if relaxed:
+        print(f"[startup] Migração de coluna: relaxado NOT NULL — {', '.join(relaxed)}")
 
 
 def create_db_and_tables() -> None:
