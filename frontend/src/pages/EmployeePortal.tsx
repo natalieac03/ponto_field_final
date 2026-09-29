@@ -115,9 +115,49 @@ function RetroLaunch({ employeeId, records, onDone }: { employeeId: number; reco
   const [ok, setOk] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // Registro recém-criado/editado — permite anexar arquivos sem precisar reabrir o formulário
+  const [savedRecord, setSavedRecord] = useState<DailyRecord | null>(null);
+  const [attError, setAttError] = useState("");
+  const [attBusy, setAttBusy] = useState<"upload" | "delete" | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const existing = date ? records.find(r => r.date === date) ?? null : null;
 
   const reset = () => { setDate(""); setEntry(""); setBs(""); setBe(""); setExit(""); setNote(""); };
+
+  const handleUploadFile = async (file: File) => {
+    if (!savedRecord) return;
+    if (savedRecord.attachments.length >= ATTACHMENTS_MAX) {
+      setAttError(`Limite de ${ATTACHMENTS_MAX} anexos atingido.`);
+      return;
+    }
+    setAttError("");
+    setAttBusy("upload");
+    try {
+      const updated = await api.uploadAttachment(savedRecord.id, file);
+      setSavedRecord(updated);
+      onDone();
+    } catch (e) {
+      setAttError(e instanceof Error ? e.message : "Erro ao enviar arquivo.");
+    } finally {
+      setAttBusy(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleDeleteAttachment = async (filename: string) => {
+    if (!savedRecord) return;
+    if (!(await confirmDialog("Remover este anexo?", { danger: true }))) return;
+    setAttError("");
+    setAttBusy("delete");
+    try {
+      const updated = await api.deleteAttachment(savedRecord.id, filename);
+      setSavedRecord(updated);
+      onDone();
+    } catch (e) {
+      setAttError(e instanceof Error ? e.message : "Erro ao remover anexo.");
+    } finally { setAttBusy(null); }
+  };
 
   const handleDateChange = (value: string) => {
     setDate(value);
@@ -142,8 +182,9 @@ function RetroLaunch({ employeeId, records, onDone }: { employeeId: number; reco
     if (date >= todayISO()) { setError("Use uma data anterior a hoje (lançamento retroativo)."); return; }
     setSaving(true);
     try {
+      let rec: DailyRecord;
       if (existing) {
-        await api.requestEditRecord(existing.id, {
+        rec = await api.requestEditRecord(existing.id, {
           entry_time: mode === "horarios" ? entry : "",
           break_start: mode === "horarios" ? bs : "",
           break_end: mode === "horarios" ? be : "",
@@ -164,9 +205,10 @@ function RetroLaunch({ employeeId, records, onDone }: { employeeId: number; reco
           payload.abono_code = abono;
         }
         if (note.trim()) payload.note = note.trim();
-        await api.createRecord(payload);
+        rec = await api.createRecord(payload);
         setOk("Lançamento enviado para aprovação do gestor ✓");
       }
+      setSavedRecord(rec);
       reset();
       onDone();
     } catch (e) {
@@ -178,7 +220,7 @@ function RetroLaunch({ employeeId, records, onDone }: { employeeId: number; reco
     <div className="card" style={{ marginBottom: 18 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div className="card-title" style={{ marginBottom: 0 }}>Lançar dia anterior</div>
-        <button className="btn btn-secondary btn-sm" onClick={() => { setOpen(v => !v); setError(""); setOk(""); }}>
+        <button className="btn btn-secondary btn-sm" onClick={() => { setOpen(v => !v); setError(""); setOk(""); setSavedRecord(null); setAttError(""); }}>
           {open ? "Fechar" : "＋ Novo lançamento"}
         </button>
       </div>
@@ -238,6 +280,74 @@ function RetroLaunch({ employeeId, records, onDone }: { employeeId: number; reco
 
           {error && <div className="alert alert-error" style={{ marginTop: 12 }}>{error}</div>}
           {ok && <div className="alert alert-success" style={{ marginTop: 12 }}>{ok}</div>}
+
+          {savedRecord && (
+            <div className="form-group" style={{ marginTop: 12 }}>
+              <label>
+                Anexos <span style={{ color: "var(--muted)", fontWeight: 400 }}>({savedRecord.attachments.length}/{ATTACHMENTS_MAX} — png, jpg, pdf — máx. 5 MB)</span>
+              </label>
+
+              {savedRecord.attachments.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 10 }}>
+                  {savedRecord.attachments.map(filename => (
+                    <div
+                      key={filename}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "10px 14px",
+                        background: "var(--surface2)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 10,
+                      }}
+                    >
+                      <a
+                        href={api.attachmentUrl(filename)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: "var(--accent)", textDecoration: "none", fontSize: 13, fontFamily: "var(--mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, marginRight: 10 }}
+                        title={filename}
+                      >
+                        📎 {filename}
+                      </a>
+                      <button
+                        className="btn btn-danger btn-sm"
+                        onClick={() => handleDeleteAttachment(filename)}
+                        disabled={attBusy !== null}
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {savedRecord.attachments.length < ATTACHMENTS_MAX && (
+                <>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".png,.jpg,.jpeg,.gif,.pdf,.webp,.heic"
+                    style={{ display: "none" }}
+                    onChange={e => {
+                      const f = e.target.files?.[0];
+                      if (f) handleUploadFile(f);
+                    }}
+                  />
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={attBusy === "upload"}
+                  >
+                    {attBusy === "upload" ? "⏳ enviando…" : "📎 Adicionar anexo"}
+                  </button>
+                </>
+              )}
+
+              {attError && <div className="alert alert-error" style={{ marginTop: 10 }}>{attError}</div>}
+            </div>
+          )}
 
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
             <button className="btn btn-primary" onClick={submit} disabled={saving}>{saving ? "Enviando…" : "Enviar para aprovação"}</button>
