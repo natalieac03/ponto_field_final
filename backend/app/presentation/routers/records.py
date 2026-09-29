@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, File, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 
 from app.application import activity, records as uc
 from app.application.dtos import (
@@ -161,7 +161,9 @@ def download_attachment(filename: str, records=Depends(record_repo), storage=Dep
     if rec is None:
         raise NotFoundError("Anexo não encontrado.")
     ensure_self_or_admin(identity, rec.employee_id)
-    return FileResponse(storage.path(filename))
+    data, content_type = storage.read(filename)
+    return Response(content=data, media_type=content_type,
+                    headers={"Cache-Control": "private, max-age=86400"})
 
 
 @router.delete("/{record_id}", status_code=204)
