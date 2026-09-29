@@ -1187,6 +1187,7 @@ export function EmployeePortal({ employee, onLogout }: Props) {
           record={editingRecord}
           onClose={() => setEditingRecord(null)}
           onSaved={onRecordEdited}
+          onAttachmentsChanged={loadRecords}
         />
       )}
 

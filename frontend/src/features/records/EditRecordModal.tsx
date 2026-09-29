@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { api } from "../../api/client";
 import { Modal } from "../../components/Modal";
+import { confirmDialog } from "../../components/ConfirmDialog";
 import type { DailyRecord, RecordRequestEdit } from "../../types";
 
 const ABONOS: { code: string; label: string }[] = [
@@ -13,16 +14,18 @@ const ABONOS: { code: string; label: string }[] = [
 ];
 
 const NOTE_MAX = 500;
+const ATTACHMENTS_MAX = 2;
 
 function brDate(iso: string) {
   const [y, mo, d] = iso.split("-");
   return `${d}/${mo}/${y}`;
 }
 
-export function EditRecordModal({ record, onClose, onSaved }: {
+export function EditRecordModal({ record, onClose, onSaved, onAttachmentsChanged }: {
   record: DailyRecord;
   onClose: () => void;
   onSaved: (msg: string) => void;
+  onAttachmentsChanged?: () => void;
 }) {
   const [entry, setEntry] = useState(record.entry_time ?? "");
   const [bs, setBs] = useState(record.break_start ?? "");
@@ -32,6 +35,42 @@ export function EditRecordModal({ record, onClose, onSaved }: {
   const [note, setNote] = useState(record.note ?? "");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [attachments, setAttachments] = useState(record.attachments ?? []);
+  const [attError, setAttError] = useState("");
+  const [attBusy, setAttBusy] = useState<"upload" | "delete" | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleUploadFile = async (file: File) => {
+    if (attachments.length >= ATTACHMENTS_MAX) {
+      setAttError(`Limite de ${ATTACHMENTS_MAX} anexos atingido.`);
+      return;
+    }
+    setAttError("");
+    setAttBusy("upload");
+    try {
+      const updated = await api.uploadAttachment(record.id, file);
+      setAttachments(updated.attachments);
+      onAttachmentsChanged?.();
+    } catch (e) {
+      setAttError(e instanceof Error ? e.message : "Erro ao enviar arquivo.");
+    } finally {
+      setAttBusy(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleDeleteAttachment = async (filename: string) => {
+    if (!(await confirmDialog("Remover este anexo?", { danger: true }))) return;
+    setAttError("");
+    setAttBusy("delete");
+    try {
+      const updated = await api.deleteAttachment(record.id, filename);
+      setAttachments(updated.attachments);
+      onAttachmentsChanged?.();
+    } catch (e) {
+      setAttError(e instanceof Error ? e.message : "Erro ao remover anexo.");
+    } finally { setAttBusy(null); }
+  };
 
   const submit = async () => {
     setError("");
@@ -79,6 +118,72 @@ export function EditRecordModal({ record, onClose, onSaved }: {
       <div className="form-group" style={{ marginTop: 12 }}>
         <label>Observação <span style={{ color: "var(--muted)", fontWeight: 400 }}>({note.length}/{NOTE_MAX})</span></label>
         <input type="text" maxLength={NOTE_MAX} value={note} onChange={e => setNote(e.target.value)} placeholder="Motivo da correção (opcional)" />
+      </div>
+
+      <div className="form-group" style={{ marginTop: 12 }}>
+        <label>
+          Anexos <span style={{ color: "var(--muted)", fontWeight: 400 }}>({attachments.length}/{ATTACHMENTS_MAX} — png, jpg, pdf — máx. 5 MB)</span>
+        </label>
+
+        {attachments.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 10 }}>
+            {attachments.map(filename => (
+              <div
+                key={filename}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "10px 14px",
+                  background: "var(--surface2)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 10,
+                }}
+              >
+                <a
+                  href={api.attachmentUrl(filename)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "var(--accent)", textDecoration: "none", fontSize: 13, fontFamily: "var(--mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, marginRight: 10 }}
+                  title={filename}
+                >
+                  📎 {filename}
+                </a>
+                <button
+                  className="btn btn-danger btn-sm"
+                  onClick={() => handleDeleteAttachment(filename)}
+                  disabled={attBusy !== null}
+                >
+                  Remover
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {attachments.length < ATTACHMENTS_MAX && (
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".png,.jpg,.jpeg,.gif,.pdf,.webp,.heic"
+              style={{ display: "none" }}
+              onChange={e => {
+                const f = e.target.files?.[0];
+                if (f) handleUploadFile(f);
+              }}
+            />
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={attBusy === "upload"}
+            >
+              {attBusy === "upload" ? "⏳ enviando…" : "📎 Adicionar anexo"}
+            </button>
+          </>
+        )}
+
+        {attError && <div className="alert alert-error" style={{ marginTop: 10 }}>{attError}</div>}
       </div>
 
       {error && <div className="alert alert-error" style={{ marginTop: 12 }}>{error}</div>}
