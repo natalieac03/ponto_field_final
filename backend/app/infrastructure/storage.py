@@ -87,7 +87,7 @@ class S3AttachmentStorage:
             aws_secret_access_key=S3_SECRET_ACCESS_KEY,
             region_name=S3_REGION or "auto",
             config=Config(
-                signature_version="s3v4",          # Railway/Tigris exige v4
+                signature_version="s3v4",          # R2/Railway Storage exigem v4
                 s3={"addressing_style": "path"},   # path-style: bucket/key em vez de bucket.host/key
             ),
         )
