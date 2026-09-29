@@ -121,9 +121,13 @@ function RetroLaunch({ employeeId, records, onDone }: { employeeId: number; reco
   const [attBusy, setAttBusy] = useState<"upload" | "delete" | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Arquivo escolhido antes de enviar — é anexado automaticamente assim que o lançamento é salvo
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const pendingFileInputRef = useRef<HTMLInputElement | null>(null);
+
   const existing = date ? records.find(r => r.date === date) ?? null : null;
 
-  const reset = () => { setDate(""); setEntry(""); setBs(""); setBe(""); setExit(""); setNote(""); };
+  const reset = () => { setDate(""); setEntry(""); setBs(""); setBe(""); setExit(""); setNote(""); setPendingFile(null); if (pendingFileInputRef.current) pendingFileInputRef.current.value = ""; };
 
   const handleUploadFile = async (file: File) => {
     if (!savedRecord) return;
@@ -208,6 +212,15 @@ function RetroLaunch({ employeeId, records, onDone }: { employeeId: number; reco
         rec = await api.createRecord(payload);
         setOk("Lançamento enviado para aprovação do gestor ✓");
       }
+
+      if (pendingFile) {
+        try {
+          rec = await api.uploadAttachment(rec.id, pendingFile);
+        } catch (e) {
+          setAttError(e instanceof Error ? e.message : "Lançamento salvo, mas o anexo não pôde ser enviado.");
+        }
+      }
+
       setSavedRecord(rec);
       reset();
       onDone();
@@ -220,7 +233,7 @@ function RetroLaunch({ employeeId, records, onDone }: { employeeId: number; reco
     <div className="card" style={{ marginBottom: 18 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div className="card-title" style={{ marginBottom: 0 }}>Lançar dia anterior</div>
-        <button className="btn btn-secondary btn-sm" onClick={() => { setOpen(v => !v); setError(""); setOk(""); setSavedRecord(null); setAttError(""); }}>
+        <button className="btn btn-secondary btn-sm" onClick={() => { setOpen(v => !v); setError(""); setOk(""); setSavedRecord(null); setAttError(""); setPendingFile(null); if (pendingFileInputRef.current) pendingFileInputRef.current.value = ""; }}>
           {open ? "Fechar" : "＋ Novo lançamento"}
         </button>
       </div>
@@ -277,6 +290,35 @@ function RetroLaunch({ employeeId, records, onDone }: { employeeId: number; reco
             <label>Observação <span style={{ color: "var(--muted)", fontWeight: 400 }}>(opcional)</span></label>
             <input type="text" maxLength={NOTE_MAX} value={note} onChange={e => setNote(e.target.value)} placeholder="Ex.: esqueci de registrar a saída" />
           </div>
+
+          {!savedRecord && (
+            <div className="form-group" style={{ marginTop: 12 }}>
+              <label>Anexo <span style={{ color: "var(--muted)", fontWeight: 400 }}>(opcional — png, jpg, pdf — máx. 5 MB)</span></label>
+              {pendingFile ? (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 10 }}>
+                  <span style={{ fontSize: 13, fontFamily: "var(--mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, marginRight: 10 }} title={pendingFile.name}>
+                    📎 {pendingFile.name}
+                  </span>
+                  <button className="btn btn-danger btn-sm" onClick={() => { setPendingFile(null); if (pendingFileInputRef.current) pendingFileInputRef.current.value = ""; }}>
+                    Remover
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <input
+                    ref={pendingFileInputRef}
+                    type="file"
+                    accept=".png,.jpg,.jpeg,.gif,.pdf,.webp,.heic"
+                    style={{ display: "none" }}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) setPendingFile(f); }}
+                  />
+                  <button className="btn btn-secondary btn-sm" onClick={() => pendingFileInputRef.current?.click()}>
+                    📎 Anexar arquivo (ex.: atestado)
+                  </button>
+                </>
+              )}
+            </div>
+          )}
 
           {error && <div className="alert alert-error" style={{ marginTop: 12 }}>{error}</div>}
           {ok && <div className="alert alert-success" style={{ marginTop: 12 }}>{ok}</div>}
