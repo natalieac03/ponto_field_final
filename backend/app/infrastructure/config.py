@@ -24,6 +24,11 @@ if not _master and not IS_PROD:
     _master = "1989"  # somente desenvolvimento local
 MASTER_ADMIN_PASSWORD = _master  # None em produção se a env não for definida
 
+# Semana de virada de mês: "1" = referência pela escala real da semana inteira
+# (sem débito/crédito fantasma); vazio/"0" = jornada fixa legada (8h/4h).
+# Rollback = desligar a variável; nada é gravado, o saldo é sempre recalculado.
+BOUNDARY_WEEK_BY_SCHEDULE = os.getenv("BOUNDARY_WEEK_BY_SCHEDULE", "").strip().lower() in ("1", "true", "yes", "on")
+
 CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",") if o.strip()]
 
 _invalid_origins = [o for o in CORS_ORIGINS if o == "*" or not (o.startswith("http://") or o.startswith("https://"))]

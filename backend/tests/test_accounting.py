@@ -158,3 +158,40 @@ def test_ponto_facultativo_gera_extra50_nao_extra100():
     )
     assert res.reference == 0
     assert res.extra50 == 240 and res.extra100 == 0
+
+
+# ── Semana de virada pela escala real (flag BOUNDARY_WEEK_BY_SCHEDULE) ──
+def _com_flag(fn):
+    def wrapper():
+        accounting.set_shifts({})
+        accounting.set_boundary_week_by_schedule(True)
+        try:
+            fn()
+        finally:
+            accounting.set_boundary_week_by_schedule(False)
+            accounting.set_shifts({})
+    return wrapper
+
+
+@_com_flag
+def test_virada_sem_escala_nao_gera_debito_no_sabado():
+    # Mês começa no sábado 2026-08-01 (semana Jul27–Ago2) sem escala:
+    # sábado é descanso e dias úteis valem 8h48, como em semana normal.
+    assert accounting.employee_reference(1, "2026-08-01", None, 480, 240, None) == 0
+    assert accounting.employee_reference(1, "2026-07-31", None, 480, 240, None) == 528
+
+
+@_com_flag
+def test_virada_com_escala_no_outro_mes_mantem_8h_nos_dias_uteis():
+    accounting.set_shifts({1: {"2026-08-01"}})  # sábado escalado (lado de agosto)
+    assert accounting.employee_reference(1, "2026-08-01", None, 480, 240, None) == 240
+    assert accounting.employee_reference(1, "2026-07-31", None, 480, 240, None) == 480
+
+
+@_com_flag
+def test_virada_soma_44h_nos_dois_meses():
+    dias = ["2026-07-27", "2026-07-28", "2026-07-29", "2026-07-30", "2026-07-31",
+            "2026-08-01", "2026-08-02"]
+    assert sum(accounting.employee_reference(1, d, None, 480, 240, None) for d in dias) == 2640
+    accounting.set_shifts({1: {"2026-08-01"}})
+    assert sum(accounting.employee_reference(1, d, None, 480, 240, None) for d in dias) == 2640

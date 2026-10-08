@@ -18,6 +18,9 @@ from app.presentation.routers import (
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
+    from app.domain import accounting
+    from app.infrastructure.config import BOUNDARY_WEEK_BY_SCHEDULE
+    accounting.set_boundary_week_by_schedule(BOUNDARY_WEEK_BY_SCHEDULE)
     # Instala o calendário editável no motor de cálculo (H3/dispensas)
     from sqlmodel import Session
     from app.application.calendar import sync_engine, sync_leaves, sync_shifts
