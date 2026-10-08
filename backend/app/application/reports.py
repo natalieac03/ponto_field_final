@@ -223,6 +223,15 @@ def build_vacation_report(session, records: RecordRepository, employees: Employe
             [r for r in recs if win_start.isoformat() <= r.date <= win_end.isoformat()],
             key=lambda r: r.date,
         )
+        sched = schedule_tuple(emp)
+
+        def _day(r):
+            # Recalcula pela regra vigente (o valor gravado reflete a regra de quando foi batido)
+            return accounting.compute_day(
+                r.date, r.entry_time, r.break_start, r.break_end, r.exit_time,
+                abono=r.abono_code, h1=h1, h2=h2, schedule=sched,
+                on_leave=accounting.is_on_leave(emp.id, r.date), employee_id=emp.id,
+            )
         items.append({
             "employee_id": emp.id,
             "employee_name": emp.name,
@@ -246,9 +255,9 @@ def build_vacation_report(session, records: RecordRepository, employees: Employe
             "records": [
                 {"date": r.date, "entry_time": r.entry_time, "break_start": r.break_start,
                  "break_end": r.break_end, "exit_time": r.exit_time,
-                 "worked_minutes": r.worked_minutes, "standard_minutes": r.standard_minutes,
-                 "overtime_minutes": r.overtime_minutes, "abono_code": r.abono_code,
-                 "day_type": r.day_type, "status": r.status}
+                 "worked_minutes": (c := _day(r)).worked, "standard_minutes": c.reference,
+                 "overtime_minutes": c.balance, "abono_code": r.abono_code,
+                 "day_type": c.day_type, "status": r.status}
                 for r in detail
             ],
         })
