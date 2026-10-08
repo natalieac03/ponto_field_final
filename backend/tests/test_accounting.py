@@ -164,11 +164,11 @@ def test_ponto_facultativo_gera_extra50_nao_extra100():
 def _com_flag(fn):
     def wrapper():
         accounting.set_shifts({})
-        accounting.set_boundary_week_by_schedule(True)
+        accounting.set_boundary_week_by_schedule("2000-01-01")
         try:
             fn()
         finally:
-            accounting.set_boundary_week_by_schedule(False)
+            accounting.set_boundary_week_by_schedule(None)
             accounting.set_shifts({})
     return wrapper
 
@@ -195,3 +195,16 @@ def test_virada_soma_44h_nos_dois_meses():
     assert sum(accounting.employee_reference(1, d, None, 480, 240, None) for d in dias) == 2640
     accounting.set_shifts({1: {"2026-08-01"}})
     assert sum(accounting.employee_reference(1, d, None, 480, 240, None) for d in dias) == 2640
+
+
+def test_corte_preserva_dias_anteriores_na_regra_legada():
+    accounting.set_shifts({})
+    accounting.set_boundary_week_by_schedule("2026-08-01")
+    try:
+        # antes do corte: legado (sábado 4h fixo, dia útil 8h)
+        assert accounting.employee_reference(1, "2026-07-04", None, 480, 240, None) == 240
+        assert accounting.employee_reference(1, "2026-07-31", None, 480, 240, None) == 480
+        # a partir do corte: escala real (sábado sem escala = 0)
+        assert accounting.employee_reference(1, "2026-08-01", None, 480, 240, None) == 0
+    finally:
+        accounting.set_boundary_week_by_schedule(None)

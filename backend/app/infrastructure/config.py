@@ -24,10 +24,14 @@ if not _master and not IS_PROD:
     _master = "1989"  # somente desenvolvimento local
 MASTER_ADMIN_PASSWORD = _master  # None em produção se a env não for definida
 
-# Semana de virada de mês: "1" = referência pela escala real da semana inteira
-# (sem débito/crédito fantasma); vazio/"0" = jornada fixa legada (8h/4h).
-# Rollback = desligar a variável; nada é gravado, o saldo é sempre recalculado.
-BOUNDARY_WEEK_BY_SCHEDULE = os.getenv("BOUNDARY_WEEK_BY_SCHEDULE", "").strip().lower() in ("1", "true", "yes", "on")
+# Semana de virada de mês: data ISO (AAAA-MM-DD) a partir da qual a referência
+# segue a escala real da semana inteira (sem débito/crédito fantasma). Dias antes
+# da data mantêm a jornada fixa legada (8h/4h), então fechamentos passados não
+# mudam. Vazio = desligada. Rollback = esvaziar a variável; nada é gravado.
+BOUNDARY_WEEK_FROM = os.getenv("BOUNDARY_WEEK_FROM", "").strip()
+if BOUNDARY_WEEK_FROM:
+    from datetime import date as _date
+    _date.fromisoformat(BOUNDARY_WEEK_FROM)  # falha cedo se o formato estiver errado
 
 CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",") if o.strip()]
 

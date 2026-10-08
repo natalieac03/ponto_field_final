@@ -85,15 +85,17 @@ def week_has_shift(employee_id: int | None, iso_date: str) -> bool:
     return any(start <= d <= end for d in days)
 
 
-# Regra da semana de virada de mês. False = jornada fixa legada (8h/4h);
-# True = formato da semana inteira (seg-dom) decidido pela escala real.
-_BOUNDARY_BY_SCHEDULE = False
+# Regra da semana de virada de mês. None = jornada fixa legada (8h/4h) sempre;
+# "YYYY-MM-DD" = a partir dessa data o formato da semana inteira (seg-dom) é
+# decidido pela escala real. Datas anteriores ao corte seguem a regra legada,
+# para que fechamentos passados não mudem.
+_BOUNDARY_FROM: str | None = None
 
 
-def set_boundary_week_by_schedule(flag: bool) -> None:
-    """Instalado no startup a partir da env BOUNDARY_WEEK_BY_SCHEDULE."""
-    global _BOUNDARY_BY_SCHEDULE
-    _BOUNDARY_BY_SCHEDULE = bool(flag)
+def set_boundary_week_by_schedule(from_date: str | None) -> None:
+    """Instalado no startup a partir da env BOUNDARY_WEEK_FROM (vazio = desligada)."""
+    global _BOUNDARY_FROM
+    _BOUNDARY_FROM = from_date or None
 
 
 def week_crosses_month(iso_date: str) -> bool:
@@ -136,10 +138,11 @@ def employee_reference(employee_id: int | None, iso_date: str, abono: str | None
 
     wd = date_cls.fromisoformat(iso_date).weekday()   # 0=seg … 6=dom
 
-    # Semana de virada (regra legada): fixo. Com a flag ligada, segue o fluxo
-    # normal abaixo — week_has_shift/has_shift olham datas, não o mês, então o
-    # formato da semana inteira vale nos dois lados da virada.
-    if week_crosses_month(iso_date) and not _BOUNDARY_BY_SCHEDULE:
+    # Semana de virada (regra legada): fixo. A partir da data de corte, segue o
+    # fluxo normal abaixo — week_has_shift/has_shift olham datas, não o mês, então
+    # o formato da semana inteira vale nos dois lados da virada. Dias antes do
+    # corte continuam na regra legada (fechamentos passados intactos).
+    if week_crosses_month(iso_date) and not (_BOUNDARY_FROM and iso_date >= _BOUNDARY_FROM):
         return h2 if wd >= 5 else h1
 
     week_target = h1 * 5 + h2                  # 44h
