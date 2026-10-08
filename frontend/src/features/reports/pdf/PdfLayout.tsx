@@ -32,7 +32,7 @@ export function Footer({ label }: { label: string }) {
   );
 }
 
-export function SignatureBlock({ roles = ["Gestor", "RH"] }: { roles?: string[] }) {
+export function SignatureBlock({ roles = ["Gestor/RH", "Colaborador"] }: { roles?: string[] }) {
   return (
     <View style={styles.signRow} wrap={false}>
       {roles.map((role) => (
