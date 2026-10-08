@@ -48,3 +48,6 @@ site/
 
 # ── Config local do Claude Code ─────────────────────────
 .claude/
+
+# ── Lock de skills (gerado localmente) ──────────────────
+skills-lock.json
