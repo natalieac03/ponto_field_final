@@ -8,6 +8,8 @@ from app.application.dtos import (
 )
 from app.application.errors import NotFoundError
 from app.application.identity import ensure_self_or_admin
+from app.application.employees import schedule_tuple
+from app.domain import accounting
 from app.domain.models import DailyRecord
 from app.presentation.deps import (
     activity_repo, attachment_storage, employee_repo, get_identity, record_repo,
@@ -29,21 +31,63 @@ def _log_record(logs, actor: dict, rec: DailyRecord, action: str, desc: str) -> 
                  entity_type="record", entity_id=rec.id, employee_id=rec.employee_id)
 
 
+def _read_recalculated(recs: list[DailyRecord], employees, settings) -> list[RecordRead]:
+    """Serializa recalculando jornada/saldo pela regra vigente (escala, virada de mês,
+    feriados, férias). O valor gravado reflete a regra do momento da batida."""
+    h1, h2 = settings.journey_params()
+    cache: dict[int, object] = {}
+    out = []
+    for r in recs:
+        read = record_to_read(r)
+        emp = cache.get(r.employee_id)
+        if emp is None and r.employee_id not in cache:
+            emp = cache[r.employee_id] = employees.get(r.employee_id)
+        if emp is not None:
+            sched = schedule_tuple(emp)
+            on_leave = accounting.is_on_leave(emp.id, r.date)
+            if bool(r.exit_time) or bool(r.abono_code):
+                res = accounting.compute_day(
+                    r.date, r.entry_time, r.break_start, r.break_end, r.exit_time,
+                    abono=r.abono_code, h1=h1, h2=h2, schedule=sched,
+                    on_leave=on_leave, employee_id=emp.id)
+                read.day_type = res.day_type
+                read.standard_minutes = res.reference
+                read.worked_minutes = res.worked
+                read.effective_minutes = res.effective
+                read.overtime_minutes = res.balance
+                read.normal_minutes = res.normal
+                read.shortfall_minutes = res.shortfall
+                read.extra50_minutes = res.extra50
+                read.extra100_minutes = res.extra100
+                read.night_minutes = res.night
+                read.night_bonus_minutes = res.night_bonus
+                read.over_limit = res.over_limit
+            else:
+                read.standard_minutes = accounting.employee_reference(
+                    emp.id, r.date, None, h1, h2,
+                    accounting.weekday_reference_override(sched, r.date), on_leave=on_leave)
+        out.append(read)
+    return out
+
+
 @router.get("", response_model=list[RecordRead])
-def list_records(records=Depends(record_repo), _admin: dict = Depends(require_admin)):
-    return [record_to_read(r) for r in uc.get_all(records)]
+def list_records(records=Depends(record_repo), employees=Depends(employee_repo),
+                 settings=Depends(settings_repo), _admin: dict = Depends(require_admin)):
+    return _read_recalculated(uc.get_all(records), employees, settings)
 
 
 @router.get("/pending", response_model=list[RecordRead])
-def list_pending(records=Depends(record_repo), _admin: dict = Depends(require_admin)):
+def list_pending(records=Depends(record_repo), employees=Depends(employee_repo),
+                 settings=Depends(settings_repo), _admin: dict = Depends(require_admin)):
     """Fila de lançamentos aguardando aprovação do gestor."""
-    return [record_to_read(r) for r in uc.list_pending(records)]
+    return _read_recalculated(uc.list_pending(records), employees, settings)
 
 
 @router.get("/employee/{employee_id}", response_model=list[RecordRead])
-def list_by_employee(employee_id: int, records=Depends(record_repo), identity: dict = Depends(get_identity)):
+def list_by_employee(employee_id: int, records=Depends(record_repo), employees=Depends(employee_repo),
+                     settings=Depends(settings_repo), identity: dict = Depends(get_identity)):
     ensure_self_or_admin(identity, employee_id)
-    return [record_to_read(r) for r in uc.get_by_employee(records, employee_id)]
+    return _read_recalculated(uc.get_by_employee(records, employee_id), employees, settings)
 
 
 @router.post("", response_model=RecordRead, status_code=201)
